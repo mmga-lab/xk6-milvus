@@ -55,10 +55,11 @@ The module exports a single `Milvus` struct that implements all methods. Each me
 4. Convert response back to JavaScript types
 
 ### Available Methods
-- Client: `client(address)`, `close()`
-- Collections: `createCollection()`, `dropCollection()`, `hasCollection()`, `loadCollection()`, `releaseCollection()`
-- Data: `insert()`, `search()`
-- Index: `createIndex()`
+- **Client**: `client(address)`, `close()`
+- **Collections**: `createCollection()`, `createCollectionFromJSON()`, `createCollectionSimple()`, `dropCollection()`, `hasCollection()`, `loadCollection()`, `releaseCollection()`
+- **Data**: `insert()`, `insertVectors()` (backward compatibility)
+- **Search**: `search()`, `searchSimple()` (backward compatibility)
+- **Index**: `createIndex()`, `createIndexSimple()` (backward compatibility)
 
 ### SDK Implementation Details
 - Uses latest Milvus client SDK: `github.com/milvus-io/milvus/client/v2/milvusclient`
@@ -74,7 +75,9 @@ All methods return errors to k6's JavaScript runtime. The new SDK provides bette
 
 ### Testing Approach
 - Use k6 scripts to test the extension
-- Example test in `example/test-milvus.js` demonstrates common usage patterns
+- **Simple test**: `example/test-milvus.js` demonstrates basic vector operations with auto-generated schema
+- **Advanced test**: `example/flexible-test.js` demonstrates complex schema with multiple field types, filtering, and HNSW indexing
+- Set `MILVUS_HOST` environment variable to specify custom Milvus instance
 - Successfully tested with Milvus instance at 10.104.13.2:19530
 - Performance: 99.66% success rate with 594 iterations, 10 VUs, 30s duration
 
@@ -85,7 +88,53 @@ All methods return errors to k6's JavaScript runtime. The new SDK provides bette
 3. **Collection Loading**: Collections must be loaded before search operations using task.Await()
 4. **Index Creation**: Create indexes after inserting data, operations are async and require task.Await()
 5. **SDK Upgrade**: Updated from v2.4.2 to v2.5.4 with breaking API changes requiring option pattern
+6. **Flexible Schema**: Supports complex schemas with multiple field types (Int64, Float, Double, Bool, VarChar, FloatVector, etc.)
+7. **Backward Compatibility**: Simple methods (createCollectionSimple, insertVectors, searchSimple) maintain compatibility with older usage patterns
 
-## Memorized Notes
+## API Usage Examples
 
-- to memorize
+### Simple Usage (Backward Compatible)
+```javascript
+// Create simple collection with auto-generated schema
+client.createCollectionSimple('test_collection', 128);
+client.createIndexSimple('test_collection', 'vector');
+client.loadCollection('test_collection');
+
+// Insert vectors
+const vectors = [[0.1, 0.2, ...], [0.3, 0.4, ...]];
+client.insertVectors('test_collection', vectors);
+
+// Search vectors
+const results = client.searchSimple('test_collection', searchVectors, 10);
+```
+
+### Advanced Usage (Flexible Schema)
+```javascript
+// Create complex schema with multiple field types
+const schema = {
+    name: 'products',
+    fields: [
+        { name: 'id', dataType: 'Int64', isPrimaryKey: true, isAutoID: true },
+        { name: 'title', dataType: 'VarChar', maxLength: 200 },
+        { name: 'price', dataType: 'Float' },
+        { name: 'embedding', dataType: 'FloatVector', dimension: 128 }
+    ]
+};
+client.createCollectionFromJSON(JSON.stringify(schema));
+
+// Insert multi-field data
+const data = {
+    title: ['Product A', 'Product B'],
+    price: [19.99, 29.99],
+    embedding: [vector1, vector2]
+};
+client.insert('products', data);
+
+// Search with filters and output fields
+const searchParams = {
+    vectorField: 'embedding',
+    outputFields: ['title', 'price'],
+    expr: 'price > 15.0'
+};
+const results = client.search('products', searchVectors, 10, searchParams);
+```
