@@ -1,4 +1,4 @@
-module github.com/zilliz/xk6-milvus
+module github.com/mmga-lab/xk6-milvus
 
 go 1.24.2
 
