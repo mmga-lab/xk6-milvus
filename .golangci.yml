@@ -1,0 +1,50 @@
+run:
+  timeout: 5m
+  go: '1.23'
+
+linters:
+  enable:
+    - errcheck
+    - gosimple
+    - govet
+    - ineffassign
+    - staticcheck
+    - typecheck
+    - unused
+    - gofmt
+    - goimports
+    - misspell
+    - lll
+    - goconst
+    - gocyclo
+    - revive
+    - gocritic
+    - gosec
+
+linters-settings:
+  lll:
+    line-length: 120
+  gocyclo:
+    min-complexity: 15
+  goconst:
+    min-len: 3
+    min-occurrences: 3
+  misspell:
+    locale: US
+  revive:
+    rules:
+      - name: exported
+        disabled: false
+
+issues:
+  exclude-rules:
+    # Exclude lll issues for long lines in tests
+    - path: _test\.go
+      linters:
+        - lll
+    # Exclude gosec issues for tests
+    - path: _test\.go
+      linters:
+        - gosec
+  max-issues-per-linter: 0
+  max-same-issues: 0

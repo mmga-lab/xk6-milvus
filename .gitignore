@@ -1,31 +1,51 @@
-# Binaries
+# Binaries for programs and plugins
 *.exe
 *.exe~
 *.dll
 *.so
 *.dylib
-k6
 
 # Test binary, built with `go test -c`
 *.test
 
 # Output of the go coverage tool
 *.out
+coverage.html
 
-# Go vendor directory
-vendor/
+# Go workspace file
+go.work
+
+# k6 binary
+k6
+k6-*
+
+# Build directories
+dist/
+build/
 
 # IDE specific files
 .idea/
+.vscode/
 *.swp
 *.swo
 *~
-.vscode/
 
 # OS specific files
 .DS_Store
 Thumbs.db
 
-# Build artifacts
-dist/
-build/
+# Environment files
+.env
+.env.local
+
+# Temporary files
+*.tmp
+*.temp
+*.log
+context
+
+# Benchmark results
+*.bench
+
+# Go vendor directory
+vendor/

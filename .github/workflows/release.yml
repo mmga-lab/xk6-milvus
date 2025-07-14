@@ -1,0 +1,62 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+env:
+  GO_VERSION: '1.24.5'
+
+jobs:
+  release:
+    name: Release
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: ${{ env.GO_VERSION }}
+
+      - name: Install xk6
+        run: go install go.k6.io/xk6/cmd/xk6@latest
+
+      - name: Build binaries
+        run: |
+          # Build for multiple platforms
+          PLATFORMS=("linux/amd64" "linux/arm64" "darwin/amd64" "darwin/arm64" "windows/amd64")
+          
+          for platform in "${PLATFORMS[@]}"; do
+            os="${platform%/*}"
+            arch="${platform#*/}"
+            
+            echo "Building for $os/$arch..."
+            GOOS=$os GOARCH=$arch xk6 build \
+              --with github.com/zilliz/xk6-milvus=. \
+              --output dist/k6-${os}-${arch}
+            
+            # Add .exe extension for Windows
+            if [ "$os" = "windows" ]; then
+              mv dist/k6-${os}-${arch} dist/k6-${os}-${arch}.exe
+            fi
+          done
+
+      - name: Create checksums
+        run: |
+          cd dist
+          sha256sum k6-* > checksums.txt
+
+      - name: Create release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            dist/k6-*
+            dist/checksums.txt
+          generate_release_notes: true
+          draft: false
+          prerelease: false
