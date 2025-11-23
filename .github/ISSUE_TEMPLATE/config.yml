@@ -1,0 +1,11 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Question or Discussion
+    url: https://github.com/mmga-lab/xk6-milvus/discussions
+    about: Ask questions or start a discussion about xk6-milvus
+  - name: Milvus Documentation
+    url: https://milvus.io/docs
+    about: Official Milvus documentation
+  - name: k6 Documentation
+    url: https://k6.io/docs/
+    about: Official k6 documentation

@@ -8,46 +8,94 @@ xk6-milvus is a k6 extension for load testing Milvus vector databases. It provid
 
 ## Architecture
 
-The project follows k6 extension best practices with a RootModule/ModuleInstance pattern:
-- **milvus.go**: Contains the entire k6 extension implementation (1,106 lines)
+The project follows k6 extension best practices with a RootModule/ModuleInstance pattern and clean package organization:
+
+### Project Structure
+```
+xk6-milvus/
+├── register.go              # Extension registration entry point (6 lines)
+├── pkg/milvus/              # Core implementation package
+│   ├── module.go            # k6 module registration and RootModule
+│   ├── client.go            # Client creation and management
+│   ├── collection.go        # Collection operations
+│   ├── data.go              # Insert/upsert/delete operations
+│   ├── search.go            # Search and query operations
+│   ├── index.go             # Index management
+│   ├── converters.go        # Type conversions (schema, vectors, etc.)
+│   ├── types.go             # Type definitions and structs
+│   ├── errors.go            # Error handling
+│   ├── config.go            # Configuration structs
+│   ├── helpers.go           # Helper functions
+│   └── *_test.go            # Co-located tests
+├── examples/                # Usage examples
+├── docs/                    # Documentation
+│   └── API.md               # Complete API reference
+└── .github/                 # CI/CD workflows and templates
+```
+
+### Module Pattern
+- **register.go**: Minimal entry point that imports pkg/milvus for side effects
 - **RootModule**: Global module instance that creates module instances for each VU
 - **Milvus**: VU-specific module instance with access to VU context
 - **Client**: Milvus client wrapper using VU context for proper lifecycle management
 - Wraps the official Milvus Go SDK v2.5.4 to provide k6-friendly methods
 - Registers using `modules.Register("k6/x/milvus", new(RootModule))`
 
-### Module Pattern
+### Key Principles
 - Each VU gets its own Milvus instance for proper isolation
 - VU context is used for all operations (not background context)
 - Exports both default and named exports following ES module conventions
 - Supports collection-bound clients for cleaner code
+- Clean separation of concerns in pkg/milvus/
 
 ## Common Commands
 
 ### Build
 ```bash
-# Install xk6 if not already installed
-go install go.k6.io/xk6/cmd/xk6@latest
+# Using Makefile (recommended)
+make help        # Show all available commands
+make build       # Build k6 with extension
+make test        # Run tests
+make lint        # Run linters
+make coverage    # Generate coverage report
 
-# Build k6 with milvus extension
+# Or manually
+go install go.k6.io/xk6/cmd/xk6@latest
 xk6 build --with github.com/mmga-lab/xk6-milvus=.
 ```
 
 ### Run Tests
 ```bash
-# Set Milvus host (optional, defaults to localhost:19530)
-export MILVUS_HOST=your-milvus-host:19530
+# Using Makefile
+make test                    # Run all tests
+make test-verbose            # Run with verbose output
+make test-e2e                # Run E2E tests (requires Milvus)
+make coverage                # Generate coverage HTML
 
-# Run example tests
-./k6 run example/new-api-test.js
-./k6 run example/collection-bound-test.js
-./k6 run example/hybrid-search-test.js
+# Or manually
+go test -v ./pkg/milvus
+go test -tags e2e -v ./pkg/milvus
+
+# Set Milvus host for testing
+export MILVUS_HOST=localhost:19530
+
+# Run k6 examples
+./k6 run examples/basic-operations.js
+./k6 run examples/vector-search.js
+./k6 run examples/hybrid-search.js
 ```
 
 ### Development Workflow
-1. Modify milvus.go to add/update functionality
-2. Rebuild using `xk6 build --with github.com/mmga-lab/xk6-milvus=.`
-3. Test changes using example scripts
+1. Create feature branch: `git checkout -b feature/my-feature`
+2. Modify code in `pkg/milvus/`
+3. Add tests in `pkg/milvus/*_test.go`
+4. Run tests: `make test`
+5. Run linters: `make lint`
+6. Rebuild: `make build`
+7. Test with examples: `./k6 run examples/...`
+8. Update documentation (README, API.md, CLAUDE.md)
+9. Commit following Conventional Commits format
+10. Submit pull request
 
 ### Dependencies
 - Milvus Go SDK v2.5.4: `github.com/milvus-io/milvus/client/v2/milvusclient`
@@ -280,14 +328,29 @@ check(upsertResult, {
 
 ## Additional Resources
 
-- Milvus Go SDK source code: `/Users/wxzhu/workspace/milvus/client`
-- Module path: `github.com/mmga-lab/xk6-milvus`
-- Example tests:
-  - `example/new-api-test.js` - All new features demo
-  - `example/collection-bound-test.js` - Collection binding pattern
-  - `example/hybrid-search-test.js` - Multi-vector hybrid search
-  - `example/flexible-test.js` - Complex schema with multiple fields
-  - `example/test-milvus.js` - Simple vector operations
+- **Milvus Go SDK source code**: `/Users/wxzhu/workspace/milvus/client`
+- **Module path**: `github.com/mmga-lab/xk6-milvus`
+- **Package path**: `github.com/mmga-lab/xk6-milvus/pkg/milvus`
+
+### Documentation
+- **README.md**: User-facing documentation with quick start
+- **docs/API.md**: Complete API reference with all methods
+- **CONTRIBUTING.md**: Development setup and contribution guidelines
+- **CHANGELOG.md**: Version history and migration guides
+
+### Examples (examples/ directory)
+- `basic-operations.js` - Basic CRUD operations
+- `collection-management.js` - Collection lifecycle management
+- `vector-search.js` - Vector similarity search patterns
+- `hybrid-search.js` - Multi-vector hybrid search
+- `full-text-search.js` - BM25 full-text search
+- Older examples in root for backward compatibility
+
+### GitHub Configuration
+- **Workflows**: `.github/workflows/test.yml` - Multi-job CI (test, lint, build)
+- **Issue Templates**: Bug reports, feature requests in `.github/ISSUE_TEMPLATE/`
+- **PR Template**: Pull request template for consistent submissions
+- **Security**: Security policy in `.github/SECURITY.md`
 
 ## Design Pattern
 
