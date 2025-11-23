@@ -29,3 +29,18 @@ Thumbs.db
 # Build artifacts
 dist/
 build/
+
+/deployment/volumes/
+/volumes/
+*.html
+
+# Test coverage
+coverage.txt
+coverage.out
+coverage.html
+integration-coverage.txt
+integration-coverage.html
+
+# Generated test data
+examples/data/*.json
+examples/recall-data/*.json

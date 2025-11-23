@@ -1,0 +1,69 @@
+linters:
+  enable:
+    - gofmt
+    - govet
+    - errcheck
+    - staticcheck
+    - unused
+    - gosimple
+    - ineffassign
+    - typecheck
+    - copyloopvar  # replaces deprecated exportloopref
+    - gocyclo
+    - misspell
+    - revive
+
+linters-settings:
+  govet:
+    enable-all: true  # includes shadow checking
+
+  errcheck:
+    check-type-assertions: true
+    check-blank: true
+
+  gocyclo:
+    min-complexity: 40  # Allow higher complexity for API wrapper functions with validation
+
+  revive:
+    rules:
+      - name: var-naming
+        disabled: false
+      - name: exported
+        disabled: false
+      # Allow type names that may stutter with package name for clarity
+      - name: package-comments
+        disabled: true
+
+run:
+  timeout: 5m
+  tests: true
+  modules-download-mode: readonly
+
+issues:
+  exclude-rules:
+    # Exclude some linters from running on tests files
+    - path: _test\.go
+      linters:
+        - gocyclo
+        - errcheck
+        - dupl
+        - gosec
+        - govet
+
+    # Allow MilvusError naming despite stuttering for clarity
+    - path: errors\.go
+      text: "stutters"
+      linters:
+        - revive
+
+    # Fieldalignment is a micro-optimization, not critical
+    - text: "fieldalignment"
+      linters:
+        - govet
+
+  exclude-dirs:
+    - vendor
+    - tools  # Exclude tools directory from linting
+
+  # Maximum count of issues with the same text
+  max-same-issues: 50

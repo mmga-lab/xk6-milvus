@@ -1,0 +1,209 @@
+name: Test
+
+on:
+  push:
+    branches: [ main, master, develop, feature/*, claude/** ]
+  pull_request:
+    branches: [ main, master, develop ]
+
+jobs:
+  test:
+    name: Test on Go ${{ matrix.go-version }}
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        go-version: ['1.24', '1.25']
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+
+      - name: Set up Go
+        uses: actions/setup-go@v6
+        with:
+          go-version: ${{ matrix.go-version }}
+
+      - name: Cache Go modules
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cache/go-build
+            ~/go/pkg/mod
+          key: ${{ runner.os }}-go-${{ matrix.go-version }}-${{ hashFiles('**/go.mod') }}
+          restore-keys: |
+            ${{ runner.os }}-go-${{ matrix.go-version }}-
+
+      - name: Download dependencies
+        run: go mod download
+
+      - name: Tidy dependencies
+        run: go mod tidy
+
+      - name: Run go vet
+        run: go vet ./...
+
+      - name: Run tests
+        run: go test -v -race -coverprofile=coverage.txt -covermode=atomic ./pkg/milvus
+
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v5
+        with:
+          files: ./coverage.txt
+          flags: unittests
+          name: codecov-umbrella
+          fail_ci_if_error: false
+
+  lint:
+    name: Lint
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+
+      - name: Set up Go
+        uses: actions/setup-go@v6
+        with:
+          go-version: '1.24'
+
+      - name: Download dependencies
+        run: go mod download
+
+      - name: Tidy dependencies
+        run: go mod tidy
+
+      - name: Run golangci-lint
+        uses: golangci/golangci-lint-action@v9
+        with:
+          version: latest
+          args: --timeout=5m
+        continue-on-error: true
+
+  build:
+    name: Build with xk6
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+
+      - name: Set up Go
+        uses: actions/setup-go@v6
+        with:
+          go-version: '1.24'
+
+      - name: Download dependencies
+        run: go mod download
+
+      - name: Tidy dependencies
+        run: go mod tidy
+
+      - name: Install xk6
+        run: go install go.k6.io/xk6/cmd/xk6@latest
+
+      - name: Build k6 with extension
+        run: xk6 build --with github.com/${{ github.repository }}=.
+
+      - name: Verify build
+        run: ./k6 version
+
+      - name: Upload k6 binary
+        uses: actions/upload-artifact@v5
+        with:
+          name: k6-with-milvus
+          path: ./k6
+          retention-days: 7
+
+  integration-test:
+    name: Integration Tests
+    runs-on: ubuntu-latest
+    needs: test
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+
+      - name: Set up Go
+        uses: actions/setup-go@v6
+        with:
+          go-version: '1.24'
+
+      - name: Download dependencies
+        run: go mod download
+
+      - name: Deploy Milvus
+        run: docker compose -f deployment/docker-compose.yml up -d --wait
+
+      - name: Run integration tests
+        env:
+          MILVUS_HOST: localhost:19530
+        run: go test -v -tags=integration -timeout=10m ./pkg/milvus
+
+      - name: Show Milvus logs on failure
+        if: failure()
+        run: docker compose -f deployment/docker-compose.yml logs standalone
+
+      - name: Cleanup Milvus
+        if: always()
+        run: docker compose -f deployment/docker-compose.yml down -v
+
+  e2e-test:
+    name: E2E Tests
+    runs-on: ubuntu-latest
+    needs: build
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+
+      - name: Set up Go
+        uses: actions/setup-go@v6
+        with:
+          go-version: '1.24'
+
+      - name: Download k6 binary
+        uses: actions/download-artifact@v5
+        with:
+          name: k6-with-milvus
+
+      - name: Make k6 executable
+        run: chmod +x ./k6
+
+      - name: Verify k6
+        run: ./k6 version
+
+      - name: Deploy Milvus
+        run: docker compose -f deployment/docker-compose.yml up -d --wait
+
+      - name: Run basic operations test
+        env:
+          MILVUS_HOST: localhost:19530
+        run: ./k6 run --quiet examples/basic-operations.js
+
+      - name: Run collection management test
+        env:
+          MILVUS_HOST: localhost:19530
+        run: ./k6 run --quiet examples/collection-management.js
+
+      - name: Run vector search test
+        env:
+          MILVUS_HOST: localhost:19530
+        run: ./k6 run --quiet examples/vector-search.js
+
+      - name: Run hybrid search test
+        env:
+          MILVUS_HOST: localhost:19530
+        run: ./k6 run --quiet examples/hybrid-search.js
+
+      - name: Run full-text search test
+        env:
+          MILVUS_HOST: localhost:19530
+        run: ./k6 run --quiet examples/full-text-search.js
+
+      - name: Show Milvus logs on failure
+        if: failure()
+        run: docker compose -f deployment/docker-compose.yml logs standalone
+
+      - name: Cleanup Milvus
+        if: always()
+        run: docker compose -f deployment/docker-compose.yml down -v
