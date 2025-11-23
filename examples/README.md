@@ -4,13 +4,13 @@ This directory contains progressive examples demonstrating xk6-milvus features.
 
 ## Examples Overview
 
-| Example | Description | Difficulty | Duration |
-|---------|-------------|------------|----------|
-| `basic-operations.js` | CRUD operations walkthrough | Beginner | ~1 min |
-| `collection-management.js` | Collection lifecycle | Beginner | ~1 min |
-| `vector-search.js` | Vector similarity search patterns | Intermediate | 10s |
-| `hybrid-search.js` | Multi-vector hybrid search | Advanced | 10s |
-| `full-text-search.js` | BM25 full-text search | Advanced | 10s |
+| Example                    | Description                       | Difficulty   | Duration |
+| -------------------------- | --------------------------------- | ------------ | -------- |
+| `basic-operations.js`      | CRUD operations walkthrough       | Beginner     | ~1 min   |
+| `collection-management.js` | Collection lifecycle              | Beginner     | ~1 min   |
+| `vector-search.js`         | Vector similarity search patterns | Intermediate | 10s      |
+| `hybrid-search.js`         | Multi-vector hybrid search        | Advanced     | 10s      |
+| `full-text-search.js`      | BM25 full-text search             | Advanced     | 10s      |
 
 ## Prerequisites
 
@@ -137,9 +137,9 @@ Modify `options` in each script:
 
 ```javascript
 export const options = {
-    vus: 10,           // Number of virtual users
-    duration: '30s',   // Test duration
-    iterations: 100,   // Total iterations (alternative to duration)
+  vus: 10, // Number of virtual users
+  duration: "30s", // Test duration
+  iterations: 100, // Total iterations (alternative to duration)
 };
 ```
 
@@ -166,17 +166,17 @@ To use these examples for load testing, modify the options:
 
 ```javascript
 export const options = {
-    stages: [
-        { duration: '30s', target: 10 },   // Ramp up to 10 VUs
-        { duration: '1m', target: 10 },    // Stay at 10 VUs
-        { duration: '30s', target: 50 },   // Ramp up to 50 VUs
-        { duration: '1m', target: 50 },    // Stay at 50 VUs
-        { duration: '30s', target: 0 },    // Ramp down to 0
-    ],
-    thresholds: {
-        'checks': ['rate>0.99'],           // 99% success rate
-        'http_req_duration': ['p(95)<200'], // 95% under 200ms
-    },
+  stages: [
+    { duration: "30s", target: 10 }, // Ramp up to 10 VUs
+    { duration: "1m", target: 10 }, // Stay at 10 VUs
+    { duration: "30s", target: 50 }, // Ramp up to 50 VUs
+    { duration: "1m", target: 50 }, // Stay at 50 VUs
+    { duration: "30s", target: 0 }, // Ramp down to 0
+  ],
+  thresholds: {
+    checks: ["rate>0.99"], // 99% success rate
+    http_req_duration: ["p(95)<200"], // 95% under 200ms
+  },
 };
 ```
 
@@ -207,8 +207,8 @@ Examples include cleanup (setup/teardown), but if needed:
 
 ```javascript
 // Manually drop collection
-const client = milvus.client('localhost:19530');
-client.dropCollection('collection_name');
+const client = milvus.client("localhost:19530");
+client.dropCollection("collection_name");
 client.close();
 ```
 

@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Changed
+
 - Reorganized project structure to follow k6 extension best practices
 - Moved all implementation code to `pkg/milvus/` directory
 - Added comprehensive documentation (API.md, CONTRIBUTING.md)
@@ -16,6 +17,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [0.2.0] - 2025-11-23
 
 ### Added
+
 - Unified `OperationResult` return structure for all operations
 - Built-in `response_time_ms` metric in every operation
 - `recall` metric for search operations quality assessment
@@ -32,12 +34,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Function support for automatic data processing
 
 ### Changed
+
 - Refactored API to return `OperationResult` instead of throwing errors
 - Improved error handling with consistent error messages
 - Enhanced type conversions for schema and data operations
 - Optimized client creation and management
 
 ### Fixed
+
 - Index creation now properly awaits task completion
 - Collection loading properly awaits task completion
 - Improved handling of vector field types
@@ -45,6 +49,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [0.1.0] - 2025-11-XX
 
 ### Added
+
 - Initial implementation of xk6-milvus extension
 - Basic Milvus client creation with authentication support
 - Collection operations:
@@ -67,6 +72,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Support for Milvus Go SDK v2.5.4
 
 ### Technical Details
+
 - Go 1.24+ required
 - Milvus Go SDK v2.5.4 dependency
 - k6 v0.49.0 compatibility
@@ -76,6 +82,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [0.0.1] - Initial Development
 
 ### Added
+
 - Project scaffolding
 - Basic module structure
 - Initial Milvus SDK integration
@@ -85,12 +92,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## Version History Notes
 
 ### Unreleased
+
 Changes in `main` branch not yet released
 
 ### [0.2.0] - Major API Redesign
+
 Complete redesign following Locust's Milvus client pattern with unified operation results, built-in metrics, and comprehensive feature support.
 
 ### [0.1.0] - Initial Release
+
 First functional release with basic Milvus operations and k6 integration.
 
 ---
@@ -100,13 +110,15 @@ First functional release with basic Milvus operations and k6 integration.
 ### Migrating from 0.1.0 to 0.2.0
 
 **Breaking Changes:**
+
 - All operations now return `OperationResult` instead of raw values or throwing errors
 - Client methods use different signatures for consistency
 
 **Before (0.1.0):**
+
 ```javascript
 try {
-  const result = client.search(vectors, 10, 'products');
+  const result = client.search(vectors, 10, "products");
   console.log(result);
 } catch (error) {
   console.error(error);
@@ -114,11 +126,17 @@ try {
 ```
 
 **After (0.2.0):**
+
 ```javascript
-const result = client.search(vectors, 10, {
-  vectorField: 'embedding',
-  outputFields: ['title', 'price']
-}, 'products');
+const result = client.search(
+  vectors,
+  10,
+  {
+    vectorField: "embedding",
+    outputFields: ["title", "price"],
+  },
+  "products",
+);
 
 if (!result.success) {
   console.error(result.error);
@@ -131,6 +149,7 @@ console.log(result.result);
 ```
 
 **Benefits:**
+
 - Consistent error handling across all operations
 - Built-in performance metrics
 - Quality metrics (recall) for search operations

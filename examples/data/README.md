@@ -46,37 +46,37 @@ dimension := 128   // Vector dimension
 ### In k6 Scripts
 
 ```javascript
-import { open } from 'k6/data';
+import { open } from "k6/data";
 
-const data = JSON.parse(open('../examples/data/sample_data.json'));
+const data = JSON.parse(open("../examples/data/sample_data.json"));
 
-export default function() {
-    // Use the data
-    const randomItem = data[Math.floor(Math.random() * data.length)];
-    console.log(randomItem.title, randomItem.vector);
+export default function () {
+  // Use the data
+  const randomItem = data[Math.floor(Math.random() * data.length)];
+  console.log(randomItem.title, randomItem.vector);
 }
 ```
 
 ### Direct Insertion
 
 ```javascript
-import milvus from 'k6/x/milvus';
-const data = JSON.parse(open('../examples/data/sample_data.json'));
+import milvus from "k6/x/milvus";
+const data = JSON.parse(open("../examples/data/sample_data.json"));
 
 export function setup() {
-    const client = milvus.client('localhost:19530');
+  const client = milvus.client("localhost:19530");
 
-    // Transform data for insertion
-    const insertData = {
-        id: data.map(d => d.id),
-        title: data.map(d => d.title),
-        category: data.map(d => d.category),
-        price: data.map(d => d.price),
-        vector: data.map(d => d.vector)
-    };
+  // Transform data for insertion
+  const insertData = {
+    id: data.map((d) => d.id),
+    title: data.map((d) => d.title),
+    category: data.map((d) => d.category),
+    price: data.map((d) => d.price),
+    vector: data.map((d) => d.vector),
+  };
 
-    client.insert(insertData, 'my_collection');
-    client.close();
+  client.insert(insertData, "my_collection");
+  client.close();
 }
 ```
 
@@ -106,18 +106,18 @@ with open('custom_data.json', 'w') as f:
 ### JavaScript Example
 
 ```javascript
-const fs = require('fs');
+const fs = require("fs");
 
 function generateVector(dim) {
-    return Array.from({length: dim}, () => Math.random());
+  return Array.from({ length: dim }, () => Math.random());
 }
 
-const data = Array.from({length: 1000}, (_, i) => ({
-    id: i + 1,
-    vector: generateVector(128)
+const data = Array.from({ length: 1000 }, (_, i) => ({
+  id: i + 1,
+  vector: generateVector(128),
 }));
 
-fs.writeFileSync('custom_data.json', JSON.stringify(data, null, 2));
+fs.writeFileSync("custom_data.json", JSON.stringify(data, null, 2));
 ```
 
 ## Large Dataset Generation

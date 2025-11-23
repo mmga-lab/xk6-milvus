@@ -62,10 +62,10 @@ When using xk6-milvus:
 
 ```javascript
 // Good - use environment variable
-const token = __ENV.MILVUS_TOKEN || 'root:Milvus';
+const token = __ENV.MILVUS_TOKEN || "root:Milvus";
 
 // Bad - hardcoded credentials
-const token = 'mypassword123';  // Don't do this!
+const token = "mypassword123"; // Don't do this!
 ```
 
 ### Connection Security
@@ -92,11 +92,13 @@ const token = 'mypassword123';  // Don't do this!
 ### k6 Script Execution
 
 k6 scripts have access to:
+
 - Network connections
 - File system (limited)
 - Environment variables
 
 Be cautious when:
+
 - Running scripts from untrusted sources
 - Sharing scripts that contain credentials
 - Using dynamic imports
@@ -106,12 +108,14 @@ Be cautious when:
 This extension wraps the official Milvus Go SDK. Security issues in the underlying SDK may affect this extension.
 
 Monitor:
+
 - [Milvus Security Advisories](https://github.com/milvus-io/milvus/security)
 - [Go SDK Security Updates](https://github.com/milvus-io/milvus/tree/master/client)
 
 ## Security Updates
 
 Security fixes will be:
+
 - Released as soon as possible
 - Documented in CHANGELOG.md
 - Announced in GitHub releases
@@ -120,6 +124,7 @@ Security fixes will be:
 ## Questions?
 
 If you have security questions (not reporting a vulnerability):
+
 - Open a GitHub Discussion
 - Check our documentation
 - Review Milvus security docs

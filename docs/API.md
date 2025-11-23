@@ -5,27 +5,131 @@ Complete API reference for xk6-milvus extension.
 ## Module Import
 
 ```javascript
-import milvus from 'k6/x/milvus';
+import milvus from "k6/x/milvus";
 ```
+
+After importing, you have access to the `milvus` module object which provides functions to create Milvus clients.
+
+### TypeScript Support
+
+xk6-milvus provides TypeScript type definitions for IDE autocompletion and type checking. See [api-docs/README.md](../api-docs/README.md) for setup instructions.
+
+---
+
+## API Overview
+
+xk6-milvus uses a **two-tier API design** for clarity and ease of use:
+
+### Module-Level API (`milvus` object)
+
+After `import milvus from 'k6/x/milvus'`, the `milvus` object provides **2 factory functions** to create clients:
+
+| Function                                                   | Purpose                                                              |
+| ---------------------------------------------------------- | -------------------------------------------------------------------- |
+| `milvus.client(address, token?)`                           | Create a standard client for multi-collection operations             |
+| `milvus.clientWithCollection(address, collection, token?)` | Create a collection-bound client (recommended for single collection) |
+
+### Client-Level API (`client` object)
+
+The `Client` object created by `milvus.client()` or `milvus.clientWithCollection()` provides all database operations:
+
+| Category       | Methods                                                                                                      |
+| -------------- | ------------------------------------------------------------------------------------------------------------ |
+| **Collection** | createCollection, createCollectionFromJSON, dropCollection, hasCollection, loadCollection, releaseCollection |
+| **Data**       | insert, upsert, delete                                                                                       |
+| **Search**     | search, query, hybridSearch                                                                                  |
+| **Index**      | createIndex                                                                                                  |
+| **Lifecycle**  | close                                                                                                        |
+
+### Complete Usage Flow
+
+```javascript
+import milvus from "k6/x/milvus";
+
+// Step 1: Create client (module-level)
+const client = milvus.client("localhost:19530");
+
+// Step 2: Use client methods (client-level)
+client.createCollection(schema);
+client.insert(data);
+client.search(vectors, 10, params);
+client.close();
+```
+
+---
+
+## Method Reference
+
+Quick reference for all available methods with links to detailed documentation.
+
+### Module-Level Functions
+
+| Function                                                   | Description                      | Section                                  |
+| ---------------------------------------------------------- | -------------------------------- | ---------------------------------------- |
+| `milvus.client(address, token?)`                           | Create a standard Milvus client  | [→ Details](#milvusclient)               |
+| `milvus.clientWithCollection(address, collection, token?)` | Create a collection-bound client | [→ Details](#milvusclientwithcollection) |
+
+### Client Methods
+
+#### Collection Operations
+
+| Method                                        | Description                    | Section                                      |
+| --------------------------------------------- | ------------------------------ | -------------------------------------------- |
+| `client.createCollection(schema)`             | Create a new collection        | [→ Details](#clientcreatecollection)         |
+| `client.createCollectionFromJSON(schemaJSON)` | Create collection from JSON    | [→ Details](#clientcreatecollectionfromjson) |
+| `client.dropCollection(collectionName?)`      | Drop a collection              | [→ Details](#clientdropcollection)           |
+| `client.hasCollection(collectionName?)`       | Check if collection exists     | [→ Details](#clienthascollection)            |
+| `client.loadCollection(collectionName?)`      | Load collection into memory    | [→ Details](#clientloadcollection)           |
+| `client.releaseCollection(collectionName?)`   | Release collection from memory | [→ Details](#clientreleasecollection)        |
+
+#### Data Operations
+
+| Method                                   | Description               | Section                    |
+| ---------------------------------------- | ------------------------- | -------------------------- |
+| `client.insert(data, collectionName?)`   | Insert data               | [→ Details](#clientinsert) |
+| `client.upsert(data, collectionName?)`   | Insert or update data     | [→ Details](#clientupsert) |
+| `client.delete(filter, collectionName?)` | Delete entities by filter | [→ Details](#clientdelete) |
+
+#### Search Operations
+
+| Method                                                                          | Description                  | Section                          |
+| ------------------------------------------------------------------------------- | ---------------------------- | -------------------------------- |
+| `client.search(vectors, topK, params, collectionName?)`                         | Vector similarity search     | [→ Details](#clientsearch)       |
+| `client.query(filter, outputFields, collectionName?)`                           | Scalar query without vectors | [→ Details](#clientquery)        |
+| `client.hybridSearch(requests, reranker, limit, outputFields, collectionName?)` | Multi-vector hybrid search   | [→ Details](#clienthybridsearch) |
+
+#### Index Operations
+
+| Method                                                        | Description           | Section                         |
+| ------------------------------------------------------------- | --------------------- | ------------------------------- |
+| `client.createIndex(fieldName, indexParams, collectionName?)` | Create index on field | [→ Details](#clientcreateindex) |
+
+#### Lifecycle
+
+| Method           | Description                 | Section |
+| ---------------- | --------------------------- | ------- |
+| `client.close()` | Close the client connection | -       |
+
+---
 
 ## Client Creation
 
-### client()
+### milvus.client()
 
 Creates a standard Milvus client for interacting with a Milvus server.
 
 #### Signature
 
 ```javascript
-client(address: string, token?: string): Client
+milvus.client(address: string, token?: string): Client
 ```
 
 #### Parameters
 
-| Parameter | Type | Required | Description |
-|-----------|------|----------|-------------|
-| `address` | string | Yes | Milvus server address (e.g., "localhost:19530") |
-| `token` | string | No | Authentication token |
+| Parameter | Type   | Required | Description                                     |
+| --------- | ------ | -------- | ----------------------------------------------- |
+| `address` | string | Yes      | Milvus server address (e.g., "localhost:19530") |
+| `token`   | string | No       | Authentication token                            |
 
 #### Returns
 
@@ -34,29 +138,29 @@ Client object for executing Milvus operations.
 #### Example
 
 ```javascript
-const client = milvus.client('localhost:19530');
-const clientWithAuth = milvus.client('localhost:19530', 'my-token');
+const client = milvus.client("localhost:19530");
+const clientWithAuth = milvus.client("localhost:19530", "my-token");
 ```
 
 ---
 
-### clientWithCollection()
+### milvus.clientWithCollection()
 
 Creates a collection-bound Milvus client that automatically uses the specified collection for all operations.
 
 #### Signature
 
 ```javascript
-clientWithCollection(address: string, collectionName: string, token?: string): Client
+milvus.clientWithCollection(address: string, collectionName: string, token?: string): Client
 ```
 
 #### Parameters
 
-| Parameter | Type | Required | Description |
-|-----------|------|----------|-------------|
-| `address` | string | Yes | Milvus server address |
-| `collectionName` | string | Yes | Default collection name for all operations |
-| `token` | string | No | Authentication token |
+| Parameter        | Type   | Required | Description                                |
+| ---------------- | ------ | -------- | ------------------------------------------ |
+| `address`        | string | Yes      | Milvus server address                      |
+| `collectionName` | string | Yes      | Default collection name for all operations |
+| `token`          | string | No       | Authentication token                       |
 
 #### Returns
 
@@ -65,7 +169,7 @@ Collection-bound Client object.
 #### Example
 
 ```javascript
-const client = milvus.clientWithCollection('localhost:19530', 'products');
+const client = milvus.clientWithCollection("localhost:19530", "products");
 // All operations now default to 'products' collection
 ```
 
@@ -73,7 +177,7 @@ const client = milvus.clientWithCollection('localhost:19530', 'products');
 
 ## Collection Operations
 
-### createCollection()
+### client.createCollection()
 
 Creates a new collection with the specified schema.
 
@@ -85,67 +189,67 @@ createCollection(schema: CollectionSchema): OperationResult
 
 #### Parameters
 
-| Parameter | Type | Required | Description |
-|-----------|------|----------|-------------|
-| `schema` | CollectionSchema | Yes | Collection schema definition |
+| Parameter | Type             | Required | Description                  |
+| --------- | ---------------- | -------- | ---------------------------- |
+| `schema`  | CollectionSchema | Yes      | Collection schema definition |
 
 #### CollectionSchema
 
-| Property | Type | Required | Description |
-|----------|------|----------|-------------|
-| `name` | string | Yes | Collection name |
-| `fields` | FieldSchema[] | Yes | Array of field definitions |
-| `numShards` | number | No | Number of shards (default: 2) |
-| `functions` | Function[] | No | Functions for automatic processing |
+| Property    | Type          | Required | Description                        |
+| ----------- | ------------- | -------- | ---------------------------------- |
+| `name`      | string        | Yes      | Collection name                    |
+| `fields`    | FieldSchema[] | Yes      | Array of field definitions         |
+| `numShards` | number        | No       | Number of shards (default: 2)      |
+| `functions` | Function[]    | No       | Functions for automatic processing |
 
 #### FieldSchema
 
-| Property | Type | Required | Description |
-|----------|------|----------|-------------|
-| `name` | string | Yes | Field name |
-| `dataType` | string | Yes | Data type (Int64, Float, VarChar, FloatVector, etc.) |
-| `isPrimaryKey` | boolean | No | Whether this is the primary key field |
-| `isAutoID` | boolean | No | Auto-generate IDs for primary key |
-| `maxLength` | number | Conditional | Max length for VarChar fields |
-| `dimension` | number | Conditional | Dimension for vector fields |
-| `enableAnalyzer` | boolean | No | Enable text analyzer (for BM25) |
-| `analyzerParams` | object | No | Analyzer configuration |
-| `enableMatch` | boolean | No | Enable text matching |
+| Property         | Type    | Required    | Description                                          |
+| ---------------- | ------- | ----------- | ---------------------------------------------------- |
+| `name`           | string  | Yes         | Field name                                           |
+| `dataType`       | string  | Yes         | Data type (Int64, Float, VarChar, FloatVector, etc.) |
+| `isPrimaryKey`   | boolean | No          | Whether this is the primary key field                |
+| `isAutoID`       | boolean | No          | Auto-generate IDs for primary key                    |
+| `maxLength`      | number  | Conditional | Max length for VarChar fields                        |
+| `dimension`      | number  | Conditional | Dimension for vector fields                          |
+| `enableAnalyzer` | boolean | No          | Enable text analyzer (for BM25)                      |
+| `analyzerParams` | object  | No          | Analyzer configuration                               |
+| `enableMatch`    | boolean | No          | Enable text matching                                 |
 
 #### Returns
 
 `OperationResult` with the following properties:
 
-| Property | Type | Description |
-|----------|------|-------------|
-| `success` | boolean | Whether operation succeeded |
-| `response_time_ms` | number | Operation duration in milliseconds |
-| `result` | any | Operation-specific result |
-| `error` | string | Error message if failed |
+| Property           | Type    | Description                        |
+| ------------------ | ------- | ---------------------------------- |
+| `success`          | boolean | Whether operation succeeded        |
+| `response_time_ms` | number  | Operation duration in milliseconds |
+| `result`           | any     | Operation-specific result          |
+| `error`            | string  | Error message if failed            |
 
 #### Example
 
 ```javascript
 const schema = {
-  name: 'products',
+  name: "products",
   fields: [
-    { name: 'id', dataType: 'Int64', isPrimaryKey: true, isAutoID: true },
-    { name: 'title', dataType: 'VarChar', maxLength: 200 },
-    { name: 'price', dataType: 'Float' },
-    { name: 'embedding', dataType: 'FloatVector', dimension: 128 }
-  ]
+    { name: "id", dataType: "Int64", isPrimaryKey: true, isAutoID: true },
+    { name: "title", dataType: "VarChar", maxLength: 200 },
+    { name: "price", dataType: "Float" },
+    { name: "embedding", dataType: "FloatVector", dimension: 128 },
+  ],
 };
 
 const result = client.createCollection(schema);
 check(result, {
-  'collection created': (r) => r.success === true,
-  'fast creation': (r) => r.response_time_ms < 1000,
+  "collection created": (r) => r.success === true,
+  "fast creation": (r) => r.response_time_ms < 1000,
 });
 ```
 
 ---
 
-### createCollectionFromJSON()
+### client.createCollectionFromJSON()
 
 Creates a collection from a JSON string schema definition.
 
@@ -159,10 +263,8 @@ createCollectionFromJSON(schemaJSON: string): OperationResult
 
 ```javascript
 const schemaJSON = JSON.stringify({
-  name: 'products',
-  fields: [
-    { name: 'id', dataType: 'Int64', isPrimaryKey: true }
-  ]
+  name: "products",
+  fields: [{ name: "id", dataType: "Int64", isPrimaryKey: true }],
 });
 
 const result = client.createCollectionFromJSON(schemaJSON);
@@ -170,7 +272,7 @@ const result = client.createCollectionFromJSON(schemaJSON);
 
 ---
 
-### dropCollection()
+### client.dropCollection()
 
 Drops (deletes) a collection.
 
@@ -182,24 +284,24 @@ dropCollection(collectionName?: string): OperationResult
 
 #### Parameters
 
-| Parameter | Type | Required | Description |
-|-----------|------|----------|-------------|
+| Parameter        | Type   | Required    | Description                                                                   |
+| ---------------- | ------ | ----------- | ----------------------------------------------------------------------------- |
 | `collectionName` | string | Conditional | Collection name (required for standard client, optional for collection-bound) |
 
 #### Example
 
 ```javascript
 // Standard client
-const result = client.dropCollection('products');
+const result = client.dropCollection("products");
 
 // Collection-bound client
-const boundClient = milvus.clientWithCollection('localhost:19530', 'products');
+const boundClient = milvus.clientWithCollection("localhost:19530", "products");
 const result = boundClient.dropCollection(); // Uses 'products'
 ```
 
 ---
 
-### hasCollection()
+### client.hasCollection()
 
 Checks if a collection exists.
 
@@ -216,15 +318,15 @@ hasCollection(collectionName?: string): OperationResult
 #### Example
 
 ```javascript
-const result = client.hasCollection('products');
+const result = client.hasCollection("products");
 if (result.success && result.result) {
-  console.log('Collection exists');
+  console.log("Collection exists");
 }
 ```
 
 ---
 
-### loadCollection()
+### client.loadCollection()
 
 Loads a collection into memory for search operations.
 
@@ -237,15 +339,15 @@ loadCollection(collectionName?: string): OperationResult
 #### Example
 
 ```javascript
-const result = client.loadCollection('products');
+const result = client.loadCollection("products");
 check(result, {
-  'collection loaded': (r) => r.success === true,
+  "collection loaded": (r) => r.success === true,
 });
 ```
 
 ---
 
-### releaseCollection()
+### client.releaseCollection()
 
 Releases a collection from memory.
 
@@ -259,7 +361,7 @@ releaseCollection(collectionName?: string): OperationResult
 
 ## Write Operations
 
-### insert()
+### client.insert()
 
 Inserts data into a collection.
 
@@ -271,10 +373,10 @@ insert(data: ColumnData, collectionName?: string): OperationResult
 
 #### Parameters
 
-| Parameter | Type | Required | Description |
-|-----------|------|----------|-------------|
-| `data` | ColumnData | Yes | Column-based data to insert |
-| `collectionName` | string | Conditional | Collection name |
+| Parameter        | Type       | Required    | Description                 |
+| ---------------- | ---------- | ----------- | --------------------------- |
+| `data`           | ColumnData | Yes         | Column-based data to insert |
+| `collectionName` | string     | Conditional | Collection name             |
 
 #### ColumnData Format
 
@@ -291,6 +393,7 @@ Data should be organized by columns (not rows):
 #### Returns
 
 `OperationResult` where `result` contains:
+
 - `insert_count`: Number of entities inserted
 - `ids`: Array of inserted IDs
 
@@ -315,7 +418,7 @@ check(insertResult, {
 
 ---
 
-### upsert()
+### client.upsert()
 
 Inserts or updates data in a collection.
 
@@ -328,16 +431,19 @@ upsert(data: ColumnData, collectionName?: string): OperationResult
 #### Example
 
 ```javascript
-const upsertResult = client.upsert({
-  id: [1, 2, 3],
-  title: ['Updated A', 'Updated B', 'Updated C'],
-  price: [18.99, 28.99, 38.99]
-}, 'products');
+const upsertResult = client.upsert(
+  {
+    id: [1, 2, 3],
+    title: ["Updated A", "Updated B", "Updated C"],
+    price: [18.99, 28.99, 38.99],
+  },
+  "products",
+);
 ```
 
 ---
 
-### delete()
+### client.delete()
 
 Deletes entities matching a filter expression.
 
@@ -349,32 +455,33 @@ delete(filter: string, collectionName?: string): OperationResult
 
 #### Parameters
 
-| Parameter | Type | Required | Description |
-|-----------|------|----------|-------------|
-| `filter` | string | Yes | Boolean filter expression |
-| `collectionName` | string | Conditional | Collection name |
+| Parameter        | Type   | Required    | Description               |
+| ---------------- | ------ | ----------- | ------------------------- |
+| `filter`         | string | Yes         | Boolean filter expression |
+| `collectionName` | string | Conditional | Collection name           |
 
 #### Returns
 
 `OperationResult` where `result` contains:
+
 - `delete_count`: Number of entities deleted
 
 #### Example
 
 ```javascript
-const deleteResult = client.delete('price < 20', 'products');
+const deleteResult = client.delete("price < 20", "products");
 console.log(`Deleted ${deleteResult.result.delete_count} items`);
 
 // Complex filters
-client.delete('price > 100 && title like "Premium%"', 'products');
-client.delete('id in [1, 2, 3]', 'products');
+client.delete('price > 100 && title like "Premium%"', "products");
+client.delete("id in [1, 2, 3]", "products");
 ```
 
 ---
 
 ## Read Operations
 
-### search()
+### client.search()
 
 Performs vector similarity search.
 
@@ -391,26 +498,27 @@ search(
 
 #### Parameters
 
-| Parameter | Type | Required | Description |
-|-----------|------|----------|-------------|
-| `vectors` | number[][] or number[] | Yes | Query vector(s) |
-| `topK` | number | Yes | Number of results to return |
-| `params` | SearchParams | Yes | Search parameters |
-| `collectionName` | string | Conditional | Collection name |
+| Parameter        | Type                   | Required    | Description                 |
+| ---------------- | ---------------------- | ----------- | --------------------------- |
+| `vectors`        | number[][] or number[] | Yes         | Query vector(s)             |
+| `topK`           | number                 | Yes         | Number of results to return |
+| `params`         | SearchParams           | Yes         | Search parameters           |
+| `collectionName` | string                 | Conditional | Collection name             |
 
 #### SearchParams
 
-| Property | Type | Required | Description |
-|----------|------|----------|-------------|
-| `vectorField` | string | Yes | Name of the vector field to search |
-| `metricType` | string | No | Distance metric (L2, IP, COSINE) |
-| `outputFields` | string[] | No | Fields to return in results |
-| `expr` | string | No | Filter expression |
-| `params` | object | No | Index-specific search params |
+| Property       | Type     | Required | Description                        |
+| -------------- | -------- | -------- | ---------------------------------- |
+| `vectorField`  | string   | Yes      | Name of the vector field to search |
+| `metricType`   | string   | No       | Distance metric (L2, IP, COSINE)   |
+| `outputFields` | string[] | No       | Fields to return in results        |
+| `expr`         | string   | No       | Filter expression                  |
+| `params`       | object   | No       | Index-specific search params       |
 
 #### Returns
 
 `OperationResult` where:
+
 - `result`: Array of search results
 - `recall`: Recall metric (for quality assessment)
 - `empty`: Boolean indicating if results are empty
@@ -445,7 +553,7 @@ searchResult.result.forEach(hit => {
 
 ---
 
-### query()
+### client.query()
 
 Performs scalar query without vectors (filter-based retrieval).
 
@@ -461,24 +569,24 @@ query(
 
 #### Parameters
 
-| Parameter | Type | Required | Description |
-|-----------|------|----------|-------------|
-| `filter` | string | Yes | Boolean filter expression |
-| `outputFields` | string[] | Yes | Fields to return |
-| `collectionName` | string | Conditional | Collection name |
+| Parameter        | Type     | Required    | Description               |
+| ---------------- | -------- | ----------- | ------------------------- |
+| `filter`         | string   | Yes         | Boolean filter expression |
+| `outputFields`   | string[] | Yes         | Fields to return          |
+| `collectionName` | string   | Conditional | Collection name           |
 
 #### Example
 
 ```javascript
 const queryResult = client.query(
-  'price > 100 && price < 200',
-  ['id', 'title', 'price'],
-  'products'
+  "price > 100 && price < 200",
+  ["id", "title", "price"],
+  "products",
 );
 
 if (queryResult.success && !queryResult.empty) {
   console.log(`Found ${queryResult.result.length} products`);
-  queryResult.result.forEach(item => {
+  queryResult.result.forEach((item) => {
     console.log(`${item.title}: $${item.price}`);
   });
 }
@@ -486,7 +594,7 @@ if (queryResult.success && !queryResult.empty) {
 
 ---
 
-### hybridSearch()
+### client.hybridSearch()
 
 Performs multi-vector hybrid search with reranking.
 
@@ -504,29 +612,29 @@ hybridSearch(
 
 #### Parameters
 
-| Parameter | Type | Required | Description |
-|-----------|------|----------|-------------|
-| `requests` | SearchRequest[] | Yes | Array of search requests |
-| `reranker` | Reranker | Yes | Reranking strategy |
-| `limit` | number | Yes | Final number of results after reranking |
-| `outputFields` | string[] | Yes | Fields to return |
-| `collectionName` | string | Conditional | Collection name |
+| Parameter        | Type            | Required    | Description                             |
+| ---------------- | --------------- | ----------- | --------------------------------------- |
+| `requests`       | SearchRequest[] | Yes         | Array of search requests                |
+| `reranker`       | Reranker        | Yes         | Reranking strategy                      |
+| `limit`          | number          | Yes         | Final number of results after reranking |
+| `outputFields`   | string[]        | Yes         | Fields to return                        |
+| `collectionName` | string          | Conditional | Collection name                         |
 
 #### SearchRequest
 
-| Property | Type | Required | Description |
-|----------|------|----------|-------------|
-| `vectors` | number[][] | Yes | Query vectors for this search |
-| `vectorField` | string | Yes | Vector field name |
-| `limit` | number | Yes | Results per search |
-| `params` | object | No | Search params (metricType, expr, etc.) |
+| Property      | Type       | Required | Description                            |
+| ------------- | ---------- | -------- | -------------------------------------- |
+| `vectors`     | number[][] | Yes      | Query vectors for this search          |
+| `vectorField` | string     | Yes      | Vector field name                      |
+| `limit`       | number     | Yes      | Results per search                     |
+| `params`      | object     | No       | Search params (metricType, expr, etc.) |
 
 #### Reranker
 
-| Property | Type | Required | Description |
-|----------|------|----------|-------------|
-| `type` | string | Yes | Reranker type: "rrf" or "weighted" |
-| `params` | object | No | Reranker-specific params |
+| Property | Type   | Required | Description                        |
+| -------- | ------ | -------- | ---------------------------------- |
+| `type`   | string | Yes      | Reranker type: "rrf" or "weighted" |
+| `params` | object | No       | Reranker-specific params           |
 
 For RRF: `{ k: 60 }` (default k value)
 For Weighted: `{ weights: [0.7, 0.3] }` (weights for each search)
@@ -538,28 +646,28 @@ const hybridResult = client.hybridSearch(
   [
     {
       vectors: denseVectors,
-      vectorField: 'dense_vector',
+      vectorField: "dense_vector",
       limit: 10,
-      params: { metricType: 'L2', expr: 'price > 50' }
+      params: { metricType: "L2", expr: "price > 50" },
     },
     {
       vectors: sparseVectors,
-      vectorField: 'sparse_vector',
+      vectorField: "sparse_vector",
       limit: 10,
-      params: { metricType: 'IP' }
-    }
+      params: { metricType: "IP" },
+    },
   ],
   {
-    type: 'rrf',
-    params: { k: 60 }
+    type: "rrf",
+    params: { k: 60 },
   },
   5, // Final top 5 results
-  ['title', 'price']
+  ["title", "price"],
 );
 
 check(hybridResult, {
-  'hybrid search successful': (r) => r.success === true,
-  'good recall': (r) => r.recall >= 0.9,
+  "hybrid search successful": (r) => r.success === true,
+  "good recall": (r) => r.recall >= 0.9,
 });
 ```
 
@@ -567,7 +675,7 @@ check(hybridResult, {
 
 ## Index Operations
 
-### createIndex()
+### client.createIndex()
 
 Creates an index on a vector field for faster searches.
 
@@ -583,21 +691,22 @@ createIndex(
 
 #### Parameters
 
-| Parameter | Type | Required | Description |
-|-----------|------|----------|-------------|
-| `fieldName` | string | Yes | Field to index |
-| `indexParams` | IndexParams | Yes | Index configuration |
-| `collectionName` | string | Conditional | Collection name |
+| Parameter        | Type        | Required    | Description         |
+| ---------------- | ----------- | ----------- | ------------------- |
+| `fieldName`      | string      | Yes         | Field to index      |
+| `indexParams`    | IndexParams | Yes         | Index configuration |
+| `collectionName` | string      | Conditional | Collection name     |
 
 #### IndexParams
 
-| Property | Type | Required | Description |
-|----------|------|----------|-------------|
-| `indexType` | string | Yes | Index type (FLAT, IVF_FLAT, HNSW, etc.) |
-| `metricType` | string | Yes | Distance metric (L2, IP, COSINE) |
-| `params` | object | No | Index-specific parameters |
+| Property     | Type   | Required | Description                             |
+| ------------ | ------ | -------- | --------------------------------------- |
+| `indexType`  | string | Yes      | Index type (FLAT, IVF_FLAT, HNSW, etc.) |
+| `metricType` | string | Yes      | Distance metric (L2, IP, COSINE)        |
+| `params`     | object | No       | Index-specific parameters               |
 
 Common index params:
+
 - IVF_FLAT: `{ nlist: 128 }`
 - HNSW: `{ M: 16, efConstruction: 200 }`
 
@@ -605,17 +714,17 @@ Common index params:
 
 ```javascript
 const indexResult = client.createIndex(
-  'embedding',
+  "embedding",
   {
-    indexType: 'HNSW',
-    metricType: 'L2',
-    params: { M: 16, efConstruction: 200 }
+    indexType: "HNSW",
+    metricType: "L2",
+    params: { M: 16, efConstruction: 200 },
   },
-  'products'
+  "products",
 );
 
 check(indexResult, {
-  'index created': (r) => r.success === true,
+  "index created": (r) => r.success === true,
 });
 ```
 
@@ -629,38 +738,41 @@ Create collections with BM25 function for automatic sparse vector generation:
 
 ```javascript
 const schema = {
-  name: 'documents',
+  name: "documents",
   numShards: 16,
   fields: [
-    { name: 'id', dataType: 'Int64', isPrimaryKey: true },
+    { name: "id", dataType: "Int64", isPrimaryKey: true },
     {
-      name: 'text',
-      dataType: 'VarChar',
+      name: "text",
+      dataType: "VarChar",
       maxLength: 25536,
       enableAnalyzer: true,
-      analyzerParams: { type: 'standard' },
-      enableMatch: true
+      analyzerParams: { type: "standard" },
+      enableMatch: true,
     },
-    { name: 'sparse', dataType: 'SparseFloatVector' }
+    { name: "sparse", dataType: "SparseFloatVector" },
   ],
   functions: [
     {
-      name: 'text_bm25_emb',
-      functionType: 'BM25',
-      inputFieldNames: ['text'],
-      outputFieldNames: ['sparse']
-    }
-  ]
+      name: "text_bm25_emb",
+      functionType: "BM25",
+      inputFieldNames: ["text"],
+      outputFieldNames: ["sparse"],
+    },
+  ],
 };
 
 client.createCollection(schema);
-client.loadCollection('documents');
+client.loadCollection("documents");
 
 // Insert text data (sparse vectors generated automatically)
-client.upsert({
-  id: [1, 2, 3],
-  text: ['Document one', 'Document two', 'Document three']
-}, 'documents');
+client.upsert(
+  {
+    id: [1, 2, 3],
+    text: ["Document one", "Document two", "Document three"],
+  },
+  "documents",
+);
 ```
 
 ---
@@ -678,7 +790,7 @@ if (!result.success) {
   return;
 }
 
-console.log('Success!');
+console.log("Success!");
 ```
 
 ---
@@ -696,34 +808,34 @@ console.log('Success!');
 
 ## Type Mapping
 
-| Milvus Type | JavaScript Type | Example |
-|-------------|----------------|---------|
-| Int64 | number | 12345 |
-| Float | number | 19.99 |
-| Double | number | 3.14159 |
-| VarChar | string | "Product Name" |
-| Bool | boolean | true |
-| FloatVector | number[] | [0.1, 0.2, 0.3] |
-| SparseFloatVector | object | {0: 0.5, 12: 0.8} |
+| Milvus Type       | JavaScript Type | Example           |
+| ----------------- | --------------- | ----------------- |
+| Int64             | number          | 12345             |
+| Float             | number          | 19.99             |
+| Double            | number          | 3.14159           |
+| VarChar           | string          | "Product Name"    |
+| Bool              | boolean         | true              |
+| FloatVector       | number[]        | [0.1, 0.2, 0.3]   |
+| SparseFloatVector | object          | {0: 0.5, 12: 0.8} |
 
 ---
 
-## Client Methods Summary
+## Method Summary
 
-| Method | Purpose | Returns |
-|--------|---------|---------|
-| `client()` | Create standard client | Client |
-| `clientWithCollection()` | Create collection-bound client | Client |
-| `createCollection()` | Create new collection | OperationResult |
-| `dropCollection()` | Delete collection | OperationResult |
-| `hasCollection()` | Check existence | OperationResult |
-| `loadCollection()` | Load to memory | OperationResult |
-| `releaseCollection()` | Unload from memory | OperationResult |
-| `insert()` | Insert data | OperationResult |
-| `upsert()` | Insert or update | OperationResult |
-| `delete()` | Delete by filter | OperationResult |
-| `search()` | Vector search | OperationResult |
-| `query()` | Scalar query | OperationResult |
-| `hybridSearch()` | Multi-vector search | OperationResult |
-| `createIndex()` | Create index | OperationResult |
-| `close()` | Close connection | OperationResult |
+| Method                          | Purpose                        | Returns         |
+| ------------------------------- | ------------------------------ | --------------- |
+| `milvus.client()`               | Create standard client         | Client          |
+| `milvus.clientWithCollection()` | Create collection-bound client | Client          |
+| `client.createCollection()`     | Create new collection          | OperationResult |
+| `client.dropCollection()`       | Delete collection              | OperationResult |
+| `client.hasCollection()`        | Check existence                | OperationResult |
+| `client.loadCollection()`       | Load to memory                 | OperationResult |
+| `client.releaseCollection()`    | Unload from memory             | OperationResult |
+| `client.insert()`               | Insert data                    | OperationResult |
+| `client.upsert()`               | Insert or update               | OperationResult |
+| `client.delete()`               | Delete by filter               | OperationResult |
+| `client.search()`               | Vector search                  | OperationResult |
+| `client.query()`                | Scalar query                   | OperationResult |
+| `client.hybridSearch()`         | Multi-vector search            | OperationResult |
+| `client.createIndex()`          | Create index                   | OperationResult |
+| `client.close()`                | Close connection               | OperationResult |

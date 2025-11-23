@@ -154,37 +154,41 @@ export default function() {
 ### Creating Collections
 
 ```javascript
-import milvus from 'k6/x/milvus';
+import milvus from "k6/x/milvus";
 
 export function setup() {
-  const client = milvus.client('localhost:19530');
+  const client = milvus.client("localhost:19530");
 
   // Create collection with schema
   const schema = {
-    name: 'products',
+    name: "products",
     fields: [
-      { name: 'id', dataType: 'Int64', isPrimaryKey: true, isAutoID: true },
-      { name: 'title', dataType: 'VarChar', maxLength: 200 },
-      { name: 'price', dataType: 'Float' },
-      { name: 'embedding', dataType: 'FloatVector', dimension: 128 }
-    ]
+      { name: "id", dataType: "Int64", isPrimaryKey: true, isAutoID: true },
+      { name: "title", dataType: "VarChar", maxLength: 200 },
+      { name: "price", dataType: "Float" },
+      { name: "embedding", dataType: "FloatVector", dimension: 128 },
+    ],
   };
 
   const createResult = client.createCollection(schema);
 
   check(createResult, {
-    'collection created': (r) => r.success === true,
+    "collection created": (r) => r.success === true,
   });
 
   // Create index for faster search
-  const indexResult = client.createIndex('embedding', {
-    indexType: 'HNSW',
-    metricType: 'L2',
-    params: { M: 16, efConstruction: 200 }
-  }, 'products');
+  const indexResult = client.createIndex(
+    "embedding",
+    {
+      indexType: "HNSW",
+      metricType: "L2",
+      params: { M: 16, efConstruction: 200 },
+    },
+    "products",
+  );
 
   // Load collection into memory
-  const loadResult = client.loadCollection('products');
+  const loadResult = client.loadCollection("products");
 
   client.close();
 }
@@ -193,37 +197,37 @@ export function setup() {
 ### Hybrid Search (Multi-Vector)
 
 ```javascript
-import milvus from 'k6/x/milvus';
+import milvus from "k6/x/milvus";
 
-export default function() {
-  const client = milvus.clientWithCollection('localhost:19530', 'documents');
+export default function () {
+  const client = milvus.clientWithCollection("localhost:19530", "documents");
 
   const hybridResult = client.hybridSearch(
     [
       {
         vectors: denseVectors,
-        vectorField: 'dense_vector',
+        vectorField: "dense_vector",
         limit: 10,
-        params: { metricType: 'L2' }
+        params: { metricType: "L2" },
       },
       {
         vectors: sparseVectors,
-        vectorField: 'sparse_vector',
+        vectorField: "sparse_vector",
         limit: 10,
-        params: { metricType: 'IP' }
-      }
+        params: { metricType: "IP" },
+      },
     ],
     {
-      type: 'rrf',           // RRF reranking
-      params: { k: 60 }
+      type: "rrf", // RRF reranking
+      params: { k: 60 },
     },
-    5,                       // final top 5
-    ['title', 'content']
+    5, // final top 5
+    ["title", "content"],
   );
 
   check(hybridResult, {
-    'hybrid search successful': (r) => r.success === true,
-    'good recall': (r) => r.recall >= 0.9,
+    "hybrid search successful": (r) => r.success === true,
+    "good recall": (r) => r.recall >= 0.9,
   });
 
   client.close();
@@ -233,53 +237,123 @@ export default function() {
 ### BM25 Full-Text Search
 
 ```javascript
-import milvus from 'k6/x/milvus';
+import milvus from "k6/x/milvus";
 
 export function setup() {
-  const client = milvus.client('localhost:19530');
+  const client = milvus.client("localhost:19530");
 
   // Create collection with BM25 function
   const schema = {
-    name: 'documents',
+    name: "documents",
     fields: [
-      { name: 'id', dataType: 'Int64', isPrimaryKey: true },
+      { name: "id", dataType: "Int64", isPrimaryKey: true },
       {
-        name: 'text',
-        dataType: 'VarChar',
+        name: "text",
+        dataType: "VarChar",
         maxLength: 25536,
         enableAnalyzer: true,
-        analyzerParams: { type: 'standard' },
-        enableMatch: true
+        analyzerParams: { type: "standard" },
+        enableMatch: true,
       },
-      { name: 'sparse', dataType: 'SparseFloatVector' }
+      { name: "sparse", dataType: "SparseFloatVector" },
     ],
     functions: [
       {
-        name: 'text_bm25_emb',
-        functionType: 'BM25',
-        inputFieldNames: ['text'],
-        outputFieldNames: ['sparse']
-      }
-    ]
+        name: "text_bm25_emb",
+        functionType: "BM25",
+        inputFieldNames: ["text"],
+        outputFieldNames: ["sparse"],
+      },
+    ],
   };
 
   client.createCollection(schema);
-  client.loadCollection('documents');
+  client.loadCollection("documents");
   client.close();
 }
 
-export default function() {
-  const client = milvus.clientWithCollection('localhost:19530', 'documents');
+export default function () {
+  const client = milvus.clientWithCollection("localhost:19530", "documents");
 
   // Insert text (sparse vectors generated automatically)
   client.upsert({
     id: [1, 2, 3],
-    text: ['Document one', 'Document two', 'Document three']
+    text: ["Document one", "Document two", "Document three"],
   });
 
   client.close();
 }
 ```
+
+## TypeScript Support
+
+xk6-milvus provides TypeScript type definitions for enhanced development experience with IDE autocompletion, type checking, and inline documentation.
+
+### Setup
+
+1. **Download the type definition file** from the repository: [`index.d.ts`](index.d.ts)
+
+2. **Create a configuration file** in your project root:
+
+**jsconfig.json** (for JavaScript):
+
+```json
+{
+  "compilerOptions": {
+    "target": "ES6",
+    "module": "ES6",
+    "paths": {
+      "k6/x/milvus": ["./typings/xk6-milvus/index.d.ts"]
+    }
+  }
+}
+```
+
+1. **Organize your project**:
+
+```text
+your-project/
+├── jsconfig.json
+├── typings/
+│   └── xk6-milvus/
+│       └── index.d.ts
+└── tests/
+    └── your-test.js
+```
+
+### Benefits
+
+- ✅ **IDE Autocompletion** - Type `client.` to see all available methods
+- ✅ **Type Checking** - Catch errors before runtime
+- ✅ **Inline Documentation** - View JSDoc comments in your IDE
+- ✅ **Parameter Hints** - See parameter types as you type
+
+### Example with TypeScript Support
+
+```javascript
+import milvus from "k6/x/milvus";
+
+export default function () {
+  // IDE shows all available parameters and types
+  const client = milvus.client("localhost:19530");
+
+  // Autocompletion for client methods
+  const result = client.createCollection({
+    name: "products",
+    fields: [
+      {
+        name: "id",
+        dataType: "Int64", // IDE suggests valid data types
+        isPrimaryKey: true,
+      },
+    ],
+  });
+
+  client.close();
+}
+```
+
+For detailed setup instructions, see [api-docs/README.md](api-docs/README.md).
 
 ## API Reference
 
@@ -333,13 +407,13 @@ All operations return `OperationResult`:
 
 ### Progressive Learning
 
-| Example | Description |
-|---------|-------------|
-| `examples/basic-operations.js` | Basic CRUD operations |
-| `examples/collection-management.js` | Collection lifecycle |
-| `examples/vector-search.js` | Vector similarity search |
-| `examples/hybrid-search.js` | Multi-vector hybrid search |
-| `examples/full-text-search.js` | BM25 full-text search |
+| Example                             | Description                |
+| ----------------------------------- | -------------------------- |
+| `examples/basic-operations.js`      | Basic CRUD operations      |
+| `examples/collection-management.js` | Collection lifecycle       |
+| `examples/vector-search.js`         | Vector similarity search   |
+| `examples/hybrid-search.js`         | Multi-vector hybrid search |
+| `examples/full-text-search.js`      | BM25 full-text search      |
 
 See all examples in the [`examples/`](examples/) directory.
 
@@ -365,11 +439,11 @@ Customize load testing behavior:
 
 ```javascript
 export const options = {
-  vus: 10,           // Virtual users
-  duration: '30s',   // Test duration
-  iterations: 1000,  // Total iterations
+  vus: 10, // Virtual users
+  duration: "30s", // Test duration
+  iterations: 1000, // Total iterations
   thresholds: {
-    'checks': ['rate>0.99'],  // 99% success rate
+    checks: ["rate>0.99"], // 99% success rate
   },
 };
 ```
@@ -378,7 +452,7 @@ export const options = {
 
 ### Project Structure
 
-```
+```text
 xk6-milvus/
 ├── register.go              # Extension registration
 ├── pkg/milvus/              # Core implementation
@@ -426,6 +500,7 @@ We welcome contributions! Please see [CONTRIBUTING.md](CONTRIBUTING.md) for guid
 ## Architecture
 
 This extension follows:
+
 - **k6 Extension Best Practices** - RootModule/ModuleInstance pattern
 - **Locust Milvus Client Pattern** - Unified OperationResult, built-in metrics
 - **VU Context Management** - Proper lifecycle for concurrent testing
@@ -435,7 +510,8 @@ This extension follows:
 
 ### Common Issues
 
-**Connection Refused**
+#### Connection Refused
+
 ```javascript
 // Ensure Milvus is running
 docker ps | grep milvus
@@ -444,22 +520,29 @@ docker ps | grep milvus
 export MILVUS_HOST=localhost:19530
 ```
 
-**Collection Not Loaded**
+#### Collection Not Loaded
+
 ```javascript
 // Always load before searching
-client.loadCollection('my_collection');
+client.loadCollection("my_collection");
 ```
 
-**Index Not Found**
+#### Index Not Found
+
 ```javascript
 // Create index after inserting data
-client.createIndex('embedding', {
-  indexType: 'HNSW',
-  metricType: 'L2'
-}, 'my_collection');
+client.createIndex(
+  "embedding",
+  {
+    indexType: "HNSW",
+    metricType: "L2",
+  },
+  "my_collection",
+);
 ```
 
-**Low Recall**
+#### Low Recall
+
 ```javascript
 // Check search params and index configuration
 // Increase nprobe for IVF indexes

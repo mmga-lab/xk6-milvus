@@ -10,7 +10,7 @@ install-xk6: ## Install xk6 tool
 	go install go.k6.io/xk6/cmd/xk6@latest
 
 build: ## Build k6 with xk6-milvus extension
-	xk6 build --with github.com/mmga-lab/xk6-milvus=.
+	$(shell go env GOPATH)/bin/xk6 build --with github.com/mmga-lab/xk6-milvus=.
 
 test: ## Run tests
 	go test -v -race ./pkg/milvus
@@ -56,6 +56,35 @@ lint: ## Run linters
 fmt: ## Format code
 	go fmt ./...
 	gofmt -s -w .
+
+fmt-md: ## Format markdown files
+	@if command -v prettier >/dev/null 2>&1; then \
+		prettier --write "**/*.md"; \
+	else \
+		echo "prettier not installed. Install with: npm install -g prettier"; \
+		exit 1; \
+	fi
+
+lint-md: ## Lint markdown files
+	@if command -v markdownlint-cli2 >/dev/null 2>&1; then \
+		markdownlint-cli2 "**/*.md"; \
+	elif command -v prettier >/dev/null 2>&1; then \
+		prettier --check "**/*.md"; \
+	else \
+		echo "No markdown linter found. Install markdownlint-cli2 or prettier"; \
+		echo "  npm install -g markdownlint-cli2"; \
+		echo "  or: npm install -g prettier"; \
+		exit 1; \
+	fi
+
+fix-md: ## Auto-fix markdown lint issues
+	@if command -v markdownlint-cli2 >/dev/null 2>&1; then \
+		markdownlint-cli2 --fix "**/*.md"; \
+	else \
+		echo "markdownlint-cli2 not installed"; \
+		echo "Install with: npm install -g markdownlint-cli2"; \
+		exit 1; \
+	fi
 
 mod-tidy: ## Tidy go modules
 	go mod tidy

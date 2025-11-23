@@ -152,7 +152,7 @@ export MILVUS_HOST=localhost:19530
 
 ## Project Structure
 
-```
+```text
 xk6-milvus/
 ├── register.go              # Extension registration entry point
 ├── pkg/milvus/              # Core implementation
@@ -246,7 +246,7 @@ func TestSearch_Success(t *testing.T) {
 
 Follow [Conventional Commits](https://www.conventionalcommits.org/) specification:
 
-```
+```text
 <type>[optional scope]: <description>
 
 [optional body]
@@ -255,6 +255,7 @@ Follow [Conventional Commits](https://www.conventionalcommits.org/) specificatio
 ```
 
 Types:
+
 - `feat`: New feature
 - `fix`: Bug fix
 - `docs`: Documentation changes
@@ -264,7 +265,7 @@ Types:
 
 Examples:
 
-```
+```text
 feat(search): add hybrid search support
 
 Implement multi-vector hybrid search with RRF and weighted reranking.
@@ -285,6 +286,7 @@ Add examples for BM25 function configuration and complex schemas.
 This project follows the [Locust Milvus client](https://github.com/locustio/locust/blob/master/locust/contrib/milvus.py) design pattern:
 
 1. **Unified OperationResult**: All operations return `OperationResult` structure
+
    ```go
    type OperationResult struct {
        Success         bool    `json:"success"`
@@ -345,6 +347,7 @@ Releases are fully automated using GitHub Actions workflow (`.github/workflows/r
    - Follow [Semantic Versioning](https://semver.org/)
 
 2. **Create and push a version tag**
+
    ```bash
    # Ensure you're on main branch and up to date
    git checkout main
@@ -383,6 +386,7 @@ Releases are fully automated using GitHub Actions workflow (`.github/workflows/r
 ### Supported Platforms
 
 The release workflow builds for:
+
 - Linux (amd64, arm64)
 - Windows (amd64, arm64)
 - macOS/Darwin (amd64, arm64)
