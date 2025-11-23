@@ -40,5 +40,4 @@ coverage.html
 
 # Generated test data
 examples/data/*.json
-examples/data/batch_*.json
-examples/data/sample_data.json
+examples/recall-data/*.json
