@@ -40,7 +40,8 @@ func (c *Client) CreateCollection(schemaInput interface{}) interface{} {
 			Error:        fmt.Sprintf("failed to marshal schema: %v", err),
 		})
 	}
-	if err := json.Unmarshal(schemaBytes, &schema); err != nil {
+	err = json.Unmarshal(schemaBytes, &schema)
+	if err != nil {
 		return toMap(&OperationResult{
 			Success:      false,
 			ResponseTime: float64(time.Since(start).Milliseconds()),
@@ -176,14 +177,15 @@ func (c *Client) CreateCollection(schemaInput interface{}) interface{} {
 }
 
 // DropCollection drops a collection
-func (c *Client) DropCollection(collectionName string) interface{} {
+func (c *Client) DropCollection(collectionName ...string) interface{} {
 	start := time.Now()
 
-	if collectionName == "" {
-		collectionName = c.defaultCollection
+	name := c.defaultCollection
+	if len(collectionName) > 0 && collectionName[0] != "" {
+		name = collectionName[0]
 	}
 
-	option := milvusclient.NewDropCollectionOption(collectionName)
+	option := milvusclient.NewDropCollectionOption(name)
 	err := c.client.DropCollection(c.ctx, option)
 
 	if err != nil {
@@ -197,19 +199,28 @@ func (c *Client) DropCollection(collectionName string) interface{} {
 	return toMap(&OperationResult{
 		Success:      true,
 		ResponseTime: float64(time.Since(start).Milliseconds()),
-		Result:       map[string]interface{}{"collection": collectionName},
+		Result:       map[string]interface{}{"collection": name},
 	})
 }
 
 // HasCollection checks if a collection exists
-func (c *Client) HasCollection(collectionName string) interface{} {
+func (c *Client) HasCollection(collectionName ...string) interface{} {
 	start := time.Now()
 
-	if collectionName == "" {
-		collectionName = c.defaultCollection
+	name := c.defaultCollection
+	if len(collectionName) > 0 && collectionName[0] != "" {
+		name = collectionName[0]
 	}
 
-	option := milvusclient.NewHasCollectionOption(collectionName)
+	if name == "" {
+		return toMap(&OperationResult{
+			Success:      false,
+			ResponseTime: float64(time.Since(start).Milliseconds()),
+			Error:        ErrCollectionNameRequired.Error(),
+		})
+	}
+
+	option := milvusclient.NewHasCollectionOption(name)
 	has, err := c.client.HasCollection(c.ctx, option)
 
 	if err != nil {
@@ -223,19 +234,28 @@ func (c *Client) HasCollection(collectionName string) interface{} {
 	return toMap(&OperationResult{
 		Success:      true,
 		ResponseTime: float64(time.Since(start).Milliseconds()),
-		Result:       map[string]interface{}{"exists": has},
+		Result:       has,
 	})
 }
 
 // LoadCollection loads a collection into memory
-func (c *Client) LoadCollection(collectionName string) interface{} {
+func (c *Client) LoadCollection(collectionName ...string) interface{} {
 	start := time.Now()
 
-	if collectionName == "" {
-		collectionName = c.defaultCollection
+	name := c.defaultCollection
+	if len(collectionName) > 0 && collectionName[0] != "" {
+		name = collectionName[0]
 	}
 
-	option := milvusclient.NewLoadCollectionOption(collectionName)
+	if name == "" {
+		return toMap(&OperationResult{
+			Success:      false,
+			ResponseTime: float64(time.Since(start).Milliseconds()),
+			Error:        ErrCollectionNameRequired.Error(),
+		})
+	}
+
+	option := milvusclient.NewLoadCollectionOption(name)
 	task, err := c.client.LoadCollection(c.ctx, option)
 	if err != nil {
 		return toMap(&OperationResult{
@@ -258,19 +278,28 @@ func (c *Client) LoadCollection(collectionName string) interface{} {
 	return toMap(&OperationResult{
 		Success:      true,
 		ResponseTime: float64(time.Since(start).Milliseconds()),
-		Result:       map[string]interface{}{"collection": collectionName},
+		Result:       map[string]interface{}{"collection": name},
 	})
 }
 
 // ReleaseCollection releases a collection from memory
-func (c *Client) ReleaseCollection(collectionName string) interface{} {
+func (c *Client) ReleaseCollection(collectionName ...string) interface{} {
 	start := time.Now()
 
-	if collectionName == "" {
-		collectionName = c.defaultCollection
+	name := c.defaultCollection
+	if len(collectionName) > 0 && collectionName[0] != "" {
+		name = collectionName[0]
 	}
 
-	option := milvusclient.NewReleaseCollectionOption(collectionName)
+	if name == "" {
+		return toMap(&OperationResult{
+			Success:      false,
+			ResponseTime: float64(time.Since(start).Milliseconds()),
+			Error:        ErrCollectionNameRequired.Error(),
+		})
+	}
+
+	option := milvusclient.NewReleaseCollectionOption(name)
 	err := c.client.ReleaseCollection(c.ctx, option)
 
 	if err != nil {
@@ -284,6 +313,6 @@ func (c *Client) ReleaseCollection(collectionName string) interface{} {
 	return toMap(&OperationResult{
 		Success:      true,
 		ResponseTime: float64(time.Since(start).Milliseconds()),
-		Result:       map[string]interface{}{"collection": collectionName},
+		Result:       map[string]interface{}{"collection": name},
 	})
 }

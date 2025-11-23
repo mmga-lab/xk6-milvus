@@ -6,7 +6,7 @@
 // - Deleting data
 
 import milvus from 'k6/x/milvus';
-import { check } from 'k6';
+import { check, sleep } from 'k6';
 
 export const options = {
     vus: 1,
@@ -84,6 +84,9 @@ export default function() {
         'inserted 4 items': (r) => r.result.insert_count === 4,
     });
     console.log(`Inserted ${insertResult.result.insert_count} items in ${insertResult.response_time_ms}ms`);
+
+    // Wait for data to be indexed and available for search
+    sleep(0.5);
 
     // Step 6: Search for similar vectors
     console.log('Step 6: Searching for similar items...');

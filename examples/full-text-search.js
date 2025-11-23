@@ -6,7 +6,7 @@
 // - Combined text + vector search
 
 import milvus from 'k6/x/milvus';
-import { check } from 'k6';
+import { check, sleep } from 'k6';
 
 export const options = {
     vus: 3,
@@ -136,6 +136,9 @@ export function setup() {
         'all documents inserted': (r) => r.result.upsert_count === 5,
     });
 
+    // Wait for data to be fully indexed and queryable
+    sleep(1);
+
     console.log('Setup complete: 5 documents inserted with automatic BM25 embeddings');
     client.close();
 
@@ -169,9 +172,10 @@ export default function() {
         'architecture query successful': (r) => r.success === true,
     });
 
-    // Example 3: Update document
+    // Example 3: Update document (use VU-specific ID to avoid conflicts)
+    const newDocId = 100 + __VU; // VU1->101, VU2->102, VU3->103
     const updateResult = client.upsert({
-        id: [6],
+        id: [newDocId],
         title: ['Advanced Indexing Strategies'],
         content: ['Advanced indexing involves choosing the right index type for your use case. HNSW provides fast search, while IVF offers better memory efficiency.'],
         category: ['Advanced']
@@ -192,12 +196,12 @@ export default function() {
         'has multiple results': (r) => !r.empty && r.result && r.result.length >= 5,
     });
 
-    // Example 5: Delete old documents
-    const deleteResult = client.delete('id < 3');
+    // Example 5: Delete the newly added document (cleanup)
+    const deleteResult = client.delete(`id == ${newDocId}`);
 
     check(deleteResult, {
         'delete successful': (r) => r.success === true,
-        'deleted some documents': (r) => r.result.delete_count >= 0,
+        'deleted document': (r) => r.result.delete_count === 1,
     });
 
     client.close();

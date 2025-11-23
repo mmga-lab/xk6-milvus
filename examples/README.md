@@ -48,6 +48,7 @@ Learn fundamental CRUD operations:
 ```
 
 **What you'll learn:**
+
 - Creating collections
 - Inserting data
 - Vector search
@@ -63,6 +64,7 @@ Understand collection lifecycle:
 ```
 
 **What you'll learn:**
+
 - Different schema types
 - Collection existence checks
 - Loading/releasing collections
@@ -80,6 +82,7 @@ export MILVUS_HOST=localhost:19530
 ```
 
 **What you'll learn:**
+
 - Basic vector search
 - Search with filters
 - Batch search
@@ -95,6 +98,7 @@ Multi-vector search with reranking:
 ```
 
 **What you'll learn:**
+
 - Dense + sparse vectors
 - RRF reranking
 - Weighted reranking
@@ -109,6 +113,7 @@ BM25-based text search:
 ```
 
 **What you'll learn:**
+
 - BM25 functions
 - Automatic sparse vector generation
 - Text analyzers
@@ -140,7 +145,7 @@ export const options = {
 
 ## Example Output
 
-```
+```text
 ✓ collection created
 ✓ index created
 ✓ collection loaded

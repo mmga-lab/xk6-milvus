@@ -73,7 +73,7 @@ type QueryResult struct {
 
 // HybridSearchRequest represents a single vector search request in hybrid search
 type HybridSearchRequest struct {
-	Vectors     [][]float32            `json:"vectors"`
+	Vectors     interface{}            `json:"vectors"` // Can be [][]float32 for dense or []map[string]interface{} for sparse
 	VectorField string                 `json:"vectorField"`
 	Limit       int                    `json:"limit"`
 	Params      map[string]interface{} `json:"params,omitempty"`

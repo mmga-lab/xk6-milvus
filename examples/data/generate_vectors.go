@@ -57,8 +57,8 @@ func generateSampleData(count, dim int) []SampleData {
 }
 
 func main() {
-	count := 1000      // Number of samples
-	dimension := 128   // Vector dimension
+	count := 1000    // Number of samples
+	dimension := 128 // Vector dimension
 
 	fmt.Printf("Generating %d sample vectors with dimension %d...\n", count, dimension)
 

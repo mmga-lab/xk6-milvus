@@ -1,4 +1,4 @@
-.PHONY: help build test clean install-xk6 examples lint fmt coverage mod-tidy docker-build all
+.PHONY: help build test clean install-xk6 examples lint fmt coverage mod-tidy docker-build docker-up docker-down docker-logs all
 
 help: ## Show this help message
 	@echo 'Usage: make [target]'
@@ -18,8 +18,29 @@ test: ## Run tests
 test-verbose: ## Run tests with verbose output
 	go test -v -race -coverprofile=coverage.txt -covermode=atomic ./pkg/milvus
 
+test-integration: ## Run integration tests (requires MILVUS_HOST)
+	@if [ -z "$(MILVUS_HOST)" ]; then \
+		echo "Warning: MILVUS_HOST not set, using default localhost:19530"; \
+		echo "To set: export MILVUS_HOST=localhost:19530"; \
+		export MILVUS_HOST=localhost:19530; \
+	fi
+	go test -tags=integration -v -race ./pkg/milvus
+
+test-integration-coverage: ## Run integration tests with coverage
+	@if [ -z "$(MILVUS_HOST)" ]; then \
+		echo "Warning: MILVUS_HOST not set, using default localhost:19530"; \
+		export MILVUS_HOST=localhost:19530; \
+	fi
+	go test -tags=integration -v -race -coverprofile=integration-coverage.txt -covermode=atomic ./pkg/milvus
+	go tool cover -html=integration-coverage.txt -o integration-coverage.html
+
 test-e2e: ## Run E2E tests (requires running Milvus)
 	go test -tags e2e -v ./pkg/milvus
+
+test-all: test test-integration ## Run all tests (unit + integration)
+
+test-with-examples: ## Run all tests including k6 examples (requires MILVUS_HOST)
+	./scripts/test-all.sh $(MILVUS_HOST)
 
 coverage: test-verbose ## Generate and view coverage report
 	go tool cover -html=coverage.txt
@@ -83,6 +104,42 @@ docker-build: ## Build Docker image
 
 docker-run: docker-build ## Run k6 in Docker
 	docker run --rm k6-milvus:latest version
+
+docker-up: ## Start Milvus using docker-compose
+	@echo "Starting Milvus cluster..."
+	docker compose -f deployment/docker-compose.yml up -d --wait
+	@echo "Milvus is ready!"
+
+docker-down: ## Stop and remove Milvus containers
+	@echo "Stopping Milvus cluster..."
+	docker compose -f deployment/docker-compose.yml down -v
+
+docker-logs: ## Show Milvus logs
+	docker compose -f deployment/docker-compose.yml logs -f standalone
+
+docker-status: ## Check Milvus container status
+	docker compose -f deployment/docker-compose.yml ps
+
+test-integration-local: docker-up ## Run integration tests with local Milvus (starts/stops containers)
+	@echo "Running integration tests..."
+	@MILVUS_HOST=localhost:19530 go test -tags=integration -v -race ./pkg/milvus || \
+		(echo "Integration tests failed, showing logs..."; docker compose -f deployment/docker-compose.yml logs standalone; docker compose -f deployment/docker-compose.yml down -v; exit 1)
+	@echo "Integration tests passed, stopping Milvus..."
+	@$(MAKE) docker-down
+
+test-e2e-local: build docker-up ## Run E2E tests with local Milvus (starts/stops containers)
+	@echo "Running E2E tests..."
+	@export MILVUS_HOST=localhost:19530 && \
+		./k6 run --quiet examples/basic-operations.js && \
+		./k6 run --quiet examples/collection-management.js && \
+		./k6 run --quiet examples/vector-search.js && \
+		./k6 run --quiet examples/hybrid-search.js && \
+		./k6 run --quiet examples/full-text-search.js || \
+		(echo "E2E tests failed, showing logs..."; docker compose -f deployment/docker-compose.yml logs standalone; docker compose -f deployment/docker-compose.yml down -v; exit 1)
+	@echo "E2E tests passed, stopping Milvus..."
+	@$(MAKE) docker-down
+
+test-all-local: test-integration-local test-e2e-local ## Run all tests with local Milvus (unit + integration + E2E)
 
 generate-vectors: ## Generate sample test vectors
 	@echo "Generating sample vectors..."

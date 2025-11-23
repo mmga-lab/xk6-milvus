@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"github.com/milvus-io/milvus/client/v2/column"
+	"github.com/milvus-io/milvus/client/v2/entity"
 )
 
 // convertDataToColumns converts map data to Milvus columns
@@ -104,6 +105,17 @@ func (c *Client) convertInterfaceSlice(fieldName string, v []interface{}) (colum
 	case []interface{}:
 		return c.convertNestedVectors(fieldName, v)
 
+	case map[string]interface{}:
+		// This is a sparse vector (array of objects)
+		// Re-package as []map and call helper
+		maps := make([]map[string]interface{}, len(v))
+		for i, val := range v {
+			if m, ok := val.(map[string]interface{}); ok {
+				maps[i] = m
+			}
+		}
+		return c.convertSparseVectors(fieldName, maps)
+
 	default:
 		return nil, newError("convertInterfaceSlice", ErrUnsupportedType,
 			fmt.Sprintf("field %s has element type %T", fieldName, v[0]))
@@ -115,7 +127,10 @@ func (c *Client) convertFloat64Slice(fieldName string, v []interface{}) (column.
 	// Check if all values are integers
 	isInteger := true
 	for _, val := range v {
-		f := val.(float64)
+		f, ok := val.(float64)
+		if !ok {
+			return nil, wrapError("convertFloat64Slice", ErrInvalidDataType)
+		}
 		if f != float64(int64(f)) {
 			isInteger = false
 			break
@@ -125,14 +140,22 @@ func (c *Client) convertFloat64Slice(fieldName string, v []interface{}) (column.
 	if isInteger && fieldName == "id" {
 		ids := make([]int64, len(v))
 		for i, val := range v {
-			ids[i] = int64(val.(float64))
+			f, ok := val.(float64)
+			if !ok {
+				return nil, wrapError("convertFloat64Slice", ErrInvalidDataType)
+			}
+			ids[i] = int64(f)
 		}
 		return column.NewColumnInt64(fieldName, ids), nil
 	}
 
 	floats := make([]float32, len(v))
 	for i, val := range v {
-		floats[i] = float32(val.(float64))
+		f, ok := val.(float64)
+		if !ok {
+			return nil, wrapError("convertFloat64Slice", ErrInvalidDataType)
+		}
+		floats[i] = float32(f)
 	}
 	return column.NewColumnFloat(fieldName, floats), nil
 }
@@ -178,4 +201,36 @@ func (c *Client) convertNestedVectors(fieldName string, v []interface{}) (column
 	}
 
 	return column.NewColumnFloatVector(fieldName, dim, vectors), nil
+}
+
+// convertSparseVectors converts array of sparse vector objects to SparseFloatVector column
+func (c *Client) convertSparseVectors(fieldName string, v []map[string]interface{}) (column.Column, error) {
+	if len(v) == 0 {
+		return nil, nil // skip empty arrays
+	}
+
+	// Convert each sparse vector map to entity.SparseEmbedding
+	sparseVectors := make([]entity.SparseEmbedding, len(v))
+	for i, sparseMap := range v {
+		var positions []uint32
+		var values []float32
+		
+		for key, val := range sparseMap {
+			// Convert string key to uint32
+			var idx uint32
+			fmt.Sscanf(key, "%d", &idx)
+			if fval, ok := val.(float64); ok {
+				positions = append(positions, idx)
+				values = append(values, float32(fval))
+			}
+		}
+		
+		if sparse, err := entity.NewSliceSparseEmbedding(positions, values); err == nil {
+			sparseVectors[i] = sparse
+		} else {
+			return nil, wrapError("convertSparseVectors", err)
+		}
+	}
+	
+	return column.NewColumnSparseVectors(fieldName, sparseVectors), nil
 }

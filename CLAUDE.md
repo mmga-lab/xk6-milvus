@@ -66,18 +66,29 @@ xk6 build --with github.com/mmga-lab/xk6-milvus=.
 
 ### Run Tests
 ```bash
-# Using Makefile
-make test                    # Run all tests
-make test-verbose            # Run with verbose output
-make test-e2e                # Run E2E tests (requires Milvus)
+# Using Makefile (recommended)
+make test                    # Run unit tests
+make test-integration        # Run integration tests (requires MILVUS_HOST)
+make test-integration-local  # Run integration tests with auto Milvus setup
+make test-e2e-local          # Run E2E tests with auto Milvus setup
+make test-all-local          # Run all tests (unit + integration + E2E)
 make coverage                # Generate coverage HTML
+
+# Manage Milvus for testing
+make docker-up               # Start Milvus (uses --wait for readiness)
+make docker-down             # Stop and cleanup Milvus
+make docker-logs             # View Milvus logs
+make docker-status           # Check Milvus status
 
 # Or manually
 go test -v ./pkg/milvus
-go test -tags e2e -v ./pkg/milvus
+go test -tags=integration -v ./pkg/milvus
 
 # Set Milvus host for testing
 export MILVUS_HOST=localhost:19530
+
+# Deploy Milvus manually
+docker compose -f deployment/docker-compose.yml up -d --wait
 
 # Run k6 examples
 ./k6 run examples/basic-operations.js

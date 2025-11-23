@@ -35,9 +35,9 @@ export default function() {
     result = client.hasCollection('simple_collection');
     check(result, {
         'check successful': (r) => r.success,
-        'collection exists': (r) => r.result.exists === true,
+        'collection exists': (r) => r.result === true,
     });
-    console.log('Collection exists:', result.result.exists);
+    console.log('Collection exists:', result.result);
 
     // Example 2: Collection with multiple field types
     console.log('\n=== Example 2: Complex Collection ===');

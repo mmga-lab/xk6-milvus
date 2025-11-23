@@ -113,3 +113,97 @@ jobs:
           name: k6-with-milvus
           path: ./k6
           retention-days: 7
+
+  integration-test:
+    name: Integration Tests
+    runs-on: ubuntu-latest
+    needs: test
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+
+      - name: Set up Go
+        uses: actions/setup-go@v6
+        with:
+          go-version: '1.24'
+
+      - name: Download dependencies
+        run: go mod download
+
+      - name: Deploy Milvus
+        run: docker compose -f deployment/docker-compose.yml up -d --wait
+
+      - name: Run integration tests
+        env:
+          MILVUS_HOST: localhost:19530
+        run: go test -v -tags=integration -timeout=10m ./pkg/milvus
+
+      - name: Show Milvus logs on failure
+        if: failure()
+        run: docker compose -f deployment/docker-compose.yml logs standalone
+
+      - name: Cleanup Milvus
+        if: always()
+        run: docker compose -f deployment/docker-compose.yml down -v
+
+  e2e-test:
+    name: E2E Tests
+    runs-on: ubuntu-latest
+    needs: build
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+
+      - name: Set up Go
+        uses: actions/setup-go@v6
+        with:
+          go-version: '1.24'
+
+      - name: Download k6 binary
+        uses: actions/download-artifact@v5
+        with:
+          name: k6-with-milvus
+
+      - name: Make k6 executable
+        run: chmod +x ./k6
+
+      - name: Verify k6
+        run: ./k6 version
+
+      - name: Deploy Milvus
+        run: docker compose -f deployment/docker-compose.yml up -d --wait
+
+      - name: Run basic operations test
+        env:
+          MILVUS_HOST: localhost:19530
+        run: ./k6 run --quiet examples/basic-operations.js
+
+      - name: Run collection management test
+        env:
+          MILVUS_HOST: localhost:19530
+        run: ./k6 run --quiet examples/collection-management.js
+
+      - name: Run vector search test
+        env:
+          MILVUS_HOST: localhost:19530
+        run: ./k6 run --quiet examples/vector-search.js
+
+      - name: Run hybrid search test
+        env:
+          MILVUS_HOST: localhost:19530
+        run: ./k6 run --quiet examples/hybrid-search.js
+
+      - name: Run full-text search test
+        env:
+          MILVUS_HOST: localhost:19530
+        run: ./k6 run --quiet examples/full-text-search.js
+
+      - name: Show Milvus logs on failure
+        if: failure()
+        run: docker compose -f deployment/docker-compose.yml logs standalone
+
+      - name: Cleanup Milvus
+        if: always()
+        run: docker compose -f deployment/docker-compose.yml down -v

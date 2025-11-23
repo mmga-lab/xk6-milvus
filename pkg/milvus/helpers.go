@@ -13,8 +13,19 @@ func (c *Client) getCollectionName(collectionName ...string) string {
 // toMap converts OperationResult to map[string]interface{} using JSON tags
 // This ensures JavaScript code can access fields using camelCase names defined in JSON tags
 func toMap(result *OperationResult) map[string]interface{} {
-	data, _ := json.Marshal(result)
+	data, err := json.Marshal(result)
+	if err != nil {
+		return map[string]interface{}{
+			"success": false,
+			"error":   err.Error(),
+		}
+	}
 	var m map[string]interface{}
-	json.Unmarshal(data, &m)
+	if err := json.Unmarshal(data, &m); err != nil {
+		return map[string]interface{}{
+			"success": false,
+			"error":   err.Error(),
+		}
+	}
 	return m
 }

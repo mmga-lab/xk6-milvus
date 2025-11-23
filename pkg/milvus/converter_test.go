@@ -146,9 +146,9 @@ func TestConvertDataToColumns(t *testing.T) {
 			},
 		},
 		{
-			name: "empty data",
-			data: map[string]any{},
-			wantErr: true,
+			name:        "empty data",
+			data:        map[string]any{},
+			wantErr:     true,
 			errContains: "no valid columns",
 		},
 		{
@@ -156,7 +156,7 @@ func TestConvertDataToColumns(t *testing.T) {
 			data: map[string]any{
 				"vector": [][]float32{},
 			},
-			wantErr: true,
+			wantErr:     true,
 			errContains: "no valid columns",
 		},
 		{
@@ -164,8 +164,130 @@ func TestConvertDataToColumns(t *testing.T) {
 			data: map[string]any{
 				"invalid": map[string]string{"key": "value"},
 			},
-			wantErr: true,
+			wantErr:     true,
 			errContains: "unsupported type",
+		},
+		{
+			name: "valid int32 field",
+			data: map[string]any{
+				"count": []int32{1, 2, 3},
+			},
+			wantErr: false,
+			validate: func(t *testing.T, cols []column.Column) {
+				require.Len(t, cols, 1)
+				assert.Equal(t, "count", cols[0].Name())
+			},
+		},
+		{
+			name: "valid float64 field",
+			data: map[string]any{
+				"score": []float64{1.5, 2.5, 3.5},
+			},
+			wantErr: false,
+			validate: func(t *testing.T, cols []column.Column) {
+				require.Len(t, cols, 1)
+				assert.Equal(t, "score", cols[0].Name())
+			},
+		},
+		{
+			name: "interface slice with bool",
+			data: map[string]any{
+				"enabled": []any{true, false, true},
+			},
+			wantErr: false,
+			validate: func(t *testing.T, cols []column.Column) {
+				require.Len(t, cols, 1)
+				assert.Equal(t, "enabled", cols[0].Name())
+			},
+		},
+		{
+			name: "interface slice with unsupported element type",
+			data: map[string]any{
+				"data": []any{map[string]string{"key": "value"}},
+			},
+			wantErr:     true,
+			errContains: "unsupported type",
+		},
+		{
+			name: "empty interface slice",
+			data: map[string]any{
+				"empty": []any{},
+			},
+			wantErr:     true,
+			errContains: "no valid columns",
+		},
+		{
+			name: "nested vectors with int elements",
+			data: map[string]any{
+				"vector": []any{
+					[]any{1, 2, 3},
+					[]any{4, 5, 6},
+				},
+			},
+			wantErr: false,
+			validate: func(t *testing.T, cols []column.Column) {
+				require.Len(t, cols, 1)
+				assert.Equal(t, "vector", cols[0].Name())
+			},
+		},
+		{
+			name: "nested vectors with int64 elements",
+			data: map[string]any{
+				"vector": []any{
+					[]any{int64(1), int64(2), int64(3)},
+					[]any{int64(4), int64(5), int64(6)},
+				},
+			},
+			wantErr: false,
+			validate: func(t *testing.T, cols []column.Column) {
+				require.Len(t, cols, 1)
+				assert.Equal(t, "vector", cols[0].Name())
+			},
+		},
+		{
+			name: "nested vectors with mixed valid types",
+			data: map[string]any{
+				"vector": []any{
+					[]any{float64(1.0), 2, int64(3)},
+					[]any{float64(4.0), 5, int64(6)},
+				},
+			},
+			wantErr: false,
+			validate: func(t *testing.T, cols []column.Column) {
+				require.Len(t, cols, 1)
+				assert.Equal(t, "vector", cols[0].Name())
+			},
+		},
+		{
+			name: "nested vectors with invalid element type",
+			data: map[string]any{
+				"vector": []any{
+					[]any{float64(1.0), "invalid"},
+				},
+			},
+			wantErr:     true,
+			errContains: "invalid data type",
+		},
+		{
+			name: "nested vectors with non-slice first element but nested second",
+			data: map[string]any{
+				"vector": []any{
+					[]any{float64(1.0), float64(2.0)},
+					"not a vector", // This will fail during conversion
+				},
+			},
+			wantErr:     true,
+			errContains: "invalid data type",
+		},
+		{
+			name: "float64 slice with non-float64 element error path",
+			data: map[string]any{
+				"mixed": []any{float64(1.0)},
+			},
+			wantErr: false, // This should succeed with float conversion
+			validate: func(t *testing.T, cols []column.Column) {
+				require.Len(t, cols, 1)
+			},
 		},
 	}
 
@@ -240,6 +362,39 @@ func TestModuleInterface(t *testing.T) {
 
 	// Test that Milvus implements modules.Instance
 	var _ modules.Instance = &Milvus{}
+}
+
+func TestNewModuleInstance(t *testing.T) {
+	root := &RootModule{}
+
+	// Test with nil VU (we don't need a real VU for this test)
+	instance := root.NewModuleInstance(nil)
+
+	assert.NotNil(t, instance)
+
+	// Verify it returns a Milvus instance
+	milvus, ok := instance.(*Milvus)
+	assert.True(t, ok, "instance should be of type *Milvus")
+	assert.NotNil(t, milvus)
+}
+
+func TestExports(t *testing.T) {
+	milvus := &Milvus{vu: nil}
+
+	exports := milvus.Exports()
+
+	// Verify default export
+	assert.NotNil(t, exports.Default)
+	assert.Equal(t, milvus, exports.Default)
+
+	// Verify named exports
+	assert.NotNil(t, exports.Named)
+	assert.Contains(t, exports.Named, "client")
+	assert.Contains(t, exports.Named, "clientWithCollection")
+
+	// Verify the functions are not nil
+	assert.NotNil(t, exports.Named["client"])
+	assert.NotNil(t, exports.Named["clientWithCollection"])
 }
 
 func TestOperationResultStructure(t *testing.T) {

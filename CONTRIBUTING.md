@@ -77,8 +77,20 @@ xk6 build --with github.com/mmga-lab/xk6-milvus=.
 Using Docker Compose (recommended):
 
 ```bash
-cd deployment
-docker-compose up -d
+# Using Makefile (recommended)
+make docker-up
+
+# Or manually
+docker compose -f deployment/docker-compose.yml up -d --wait
+
+# Check status
+make docker-status
+
+# View logs
+make docker-logs
+
+# Stop and cleanup
+make docker-down
 ```
 
 Or use the Milvus standalone Docker image:
@@ -386,14 +398,22 @@ Total: 6 platform binaries per release
 ## Development Commands (Makefile)
 
 ```bash
-make help          # Show all available commands
-make build         # Build k6 with extension
-make test          # Run tests
-make coverage      # Generate coverage report
-make lint          # Run linters
-make fmt           # Format code
-make clean         # Clean build artifacts
-make examples      # Run all examples
+make help                    # Show all available commands
+make build                   # Build k6 with extension
+make test                    # Run unit tests
+make test-integration        # Run integration tests (requires MILVUS_HOST)
+make test-integration-local  # Run integration tests with auto Milvus setup
+make test-e2e-local          # Run E2E tests with auto Milvus setup
+make test-all-local          # Run all tests with auto Milvus setup
+make coverage                # Generate coverage report
+make lint                    # Run linters
+make fmt                     # Format code
+make clean                   # Clean build artifacts
+make docker-up               # Start Milvus cluster
+make docker-down             # Stop Milvus cluster
+make docker-logs             # Show Milvus logs
+make docker-status           # Check Milvus status
+make examples                # Run all examples
 ```
 
 ## Additional Resources

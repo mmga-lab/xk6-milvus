@@ -24,6 +24,16 @@ func (c *Client) CreateIndex(fieldName string, indexParams map[string]interface{
 
 	var idx index.Index
 
+	// Support both direct params and nested params object
+	// If there's a "params" key, merge it into the top level
+	if params, ok := indexParams["params"].(map[string]interface{}); ok {
+		for k, v := range params {
+			if _, exists := indexParams[k]; !exists {
+				indexParams[k] = v
+			}
+		}
+	}
+
 	// Default to flat index if not specified
 	indexType := "FLAT"
 	metricType := entity.L2

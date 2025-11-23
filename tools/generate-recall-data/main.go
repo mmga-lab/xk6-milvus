@@ -12,33 +12,33 @@ import (
 )
 
 const (
-	VectorDim      = 128
-	NumGroups      = 10
+	VectorDim       = 128
+	NumGroups       = 10
 	VectorsPerGroup = 10
 	NumNoiseVectors = 100
 	NumTestQueries  = 10
-	TopK           = 10
+	TopK            = 10
 )
 
 type Vector []float32
 
 type TrainData struct {
-	ID        []int64     `json:"id"`
-	GroupID   []int64     `json:"group_id"`
-	Category  []string    `json:"category"`
-	Embedding []Vector    `json:"embedding"`
+	ID        []int64  `json:"id"`
+	GroupID   []int64  `json:"group_id"`
+	Category  []string `json:"category"`
+	Embedding []Vector `json:"embedding"`
 }
 
 type TestData struct {
-	QueryID   []int       `json:"query_id"`
-	GroupID   []int       `json:"group_id"`
-	Embedding []Vector    `json:"embedding"`
+	QueryID   []int    `json:"query_id"`
+	GroupID   []int    `json:"group_id"`
+	Embedding []Vector `json:"embedding"`
 }
 
 type Neighbors struct {
-	QueryID   int     `json:"query_id"`
-	GroupID   int     `json:"group_id"`
-	Neighbors []int64 `json:"neighbors"`
+	QueryID   int       `json:"query_id"`
+	GroupID   int       `json:"group_id"`
+	Neighbors []int64   `json:"neighbors"`
 	Distances []float32 `json:"distances"` // Actual L2 distances
 }
 

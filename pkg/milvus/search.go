@@ -104,7 +104,9 @@ func (c *Client) Search(vectors [][]float32, topK int, params map[string]interfa
 
 			// Get ID
 			if idVal, err := resultSet.IDs.Get(i); err == nil {
-				result.ID = idVal.(int64)
+				if id, ok := idVal.(int64); ok {
+					result.ID = id
+				}
 			}
 
 			// Get other fields
@@ -154,7 +156,8 @@ func (c *Client) HybridSearch(requestsInput interface{}, rerankerInput interface
 			Error:        fmt.Sprintf("failed to marshal requests: %v", err),
 		})
 	}
-	if err := json.Unmarshal(requestsBytes, &requests); err != nil {
+	err = json.Unmarshal(requestsBytes, &requests)
+	if err != nil {
 		return toMap(&OperationResult{
 			Success:      false,
 			ResponseTime: float64(time.Since(start).Milliseconds()),
@@ -172,7 +175,8 @@ func (c *Client) HybridSearch(requestsInput interface{}, rerankerInput interface
 			Error:        fmt.Sprintf("failed to marshal reranker: %v", err),
 		})
 	}
-	if err := json.Unmarshal(rerankerBytes, &reranker); err != nil {
+	err = json.Unmarshal(rerankerBytes, &reranker)
+	if err != nil {
 		return toMap(&OperationResult{
 			Success:      false,
 			ResponseTime: float64(time.Since(start).Milliseconds()),
@@ -192,9 +196,49 @@ func (c *Client) HybridSearch(requestsInput interface{}, rerankerInput interface
 	var annRequests []*milvusclient.AnnRequest
 	for _, req := range requests {
 		// Convert vectors to entity.Vector
-		searchVectors := make([]entity.Vector, len(req.Vectors))
-		for i, v := range req.Vectors {
-			searchVectors[i] = entity.FloatVector(v)
+		// Handle both dense vectors ([][]float32) and sparse vectors ([]map[string]interface{})
+		var searchVectors []entity.Vector
+
+		// Try to parse as array of arrays (dense vectors)
+		vectorsBytes, _ := json.Marshal(req.Vectors)
+		var denseVectors [][]float32
+		if err := json.Unmarshal(vectorsBytes, &denseVectors); err == nil && len(denseVectors) > 0 {
+			// Dense vectors
+			searchVectors = make([]entity.Vector, len(denseVectors))
+			for i, v := range denseVectors {
+				searchVectors[i] = entity.FloatVector(v)
+			}
+		} else {
+			// Try sparse vectors (array of objects)
+			var sparseVectors []map[string]interface{}
+			if err := json.Unmarshal(vectorsBytes, &sparseVectors); err == nil && len(sparseVectors) > 0 {
+				searchVectors = make([]entity.Vector, len(sparseVectors))
+				for i, sparseMap := range sparseVectors {
+					// Convert map to SparseEmbedding (positions and values)
+					var positions []uint32
+					var values []float32
+					for key, val := range sparseMap {
+						// Convert string key to uint32
+						var idx uint32
+						fmt.Sscanf(key, "%d", &idx)
+						if fval, ok := val.(float64); ok {
+							positions = append(positions, idx)
+							values = append(values, float32(fval))
+						}
+					}
+					if sparse, err := entity.NewSliceSparseEmbedding(positions, values); err == nil {
+						searchVectors[i] = sparse
+					}
+				}
+			}
+		}
+
+		if len(searchVectors) == 0 {
+			return toMap(&OperationResult{
+				Success:      false,
+				ResponseTime: float64(time.Since(start).Milliseconds()),
+				Error:        fmt.Sprintf("failed to parse vectors for field %s", req.VectorField),
+			})
 		}
 
 		annReq := milvusclient.NewAnnRequest(req.VectorField, req.Limit, searchVectors...)
@@ -292,7 +336,9 @@ func (c *Client) HybridSearch(requestsInput interface{}, rerankerInput interface
 
 			// Get ID
 			if idVal, err := resultSet.IDs.Get(i); err == nil {
-				result.ID = idVal.(int64)
+				if id, ok := idVal.(int64); ok {
+					result.ID = id
+				}
 			}
 
 			// Get other fields
