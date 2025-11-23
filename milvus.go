@@ -14,14 +14,44 @@ import (
 )
 
 func init() {
-	modules.Register("k6/x/milvus", new(Milvus))
+	modules.Register("k6/x/milvus", new(RootModule))
 }
 
-type Milvus struct{}
+// Ensure the interfaces are implemented correctly
+var (
+	_ modules.Module   = &RootModule{}
+	_ modules.Instance = &Milvus{}
+)
+
+// RootModule is the global module instance that creates module instances for each VU
+type RootModule struct{}
+
+// Milvus represents the JS module instance for each VU
+type Milvus struct {
+	vu modules.VU
+}
+
+// NewModuleInstance implements the modules.Module interface
+// It creates a new instance of the Milvus module for each VU
+func (*RootModule) NewModuleInstance(vu modules.VU) modules.Instance {
+	return &Milvus{vu: vu}
+}
+
+// Exports implements the modules.Instance interface
+// It returns the exports of the module for JavaScript
+func (m *Milvus) Exports() modules.Exports {
+	return modules.Exports{
+		Default: m,
+		Named: map[string]interface{}{
+			"client": m.Client,
+		},
+	}
+}
 
 type Client struct {
 	client *milvusclient.Client
 	ctx    context.Context
+	vu     modules.VU
 }
 
 // Field represents a field definition for schema
@@ -56,8 +86,10 @@ type Schema struct {
 	NumShards   int32      `json:"numShards,omitempty"`
 }
 
-func (*Milvus) Client(address string, token ...string) (*Client, error) {
-	ctx := context.Background()
+func (m *Milvus) Client(address string, token ...string) (*Client, error) {
+	// Use VU context for proper lifecycle management and cancellation support
+	// This ensures the client respects k6 test lifecycle and timeout settings
+	ctx := m.vu.Context()
 
 	config := &milvusclient.ClientConfig{
 		Address: address,
@@ -80,6 +112,7 @@ func (*Milvus) Client(address string, token ...string) (*Client, error) {
 	return &Client{
 		client: c,
 		ctx:    ctx,
+		vu:     m.vu,
 	}, nil
 }
 
@@ -543,7 +576,21 @@ func (c *Client) Search(collectionName string, vectors [][]float32, topK int, pa
 	option = option.WithANNSField(vectorField)
 
 	// Set output fields
-	if outputFields, ok := params["outputFields"].([]string); ok {
+	// Handle both []string (direct Go calls) and []interface{} (from JavaScript)
+	var outputFields []string
+	if fields, ok := params["outputFields"].([]string); ok {
+		outputFields = fields
+	} else if fields, ok := params["outputFields"].([]interface{}); ok {
+		// Convert []interface{} to []string
+		outputFields = make([]string, len(fields))
+		for i, field := range fields {
+			if fieldStr, ok := field.(string); ok {
+				outputFields[i] = fieldStr
+			}
+		}
+	}
+
+	if len(outputFields) > 0 {
 		option = option.WithOutputFields(outputFields...)
 	} else {
 		option = option.WithOutputFields("id")
@@ -578,14 +625,12 @@ func (c *Client) Search(collectionName string, vectors [][]float32, topK int, pa
 				resultItem.ID = idVal.(int64)
 			}
 
-			// Get other output fields
-			if outputFields, ok := params["outputFields"].([]string); ok {
-				for _, field := range outputFields {
-					if field != "id" {
-						if fieldColumn := result.GetColumn(field); fieldColumn != nil {
-							if fieldVal, err := fieldColumn.Get(i); err == nil {
-								resultItem.Fields[field] = fieldVal
-							}
+			// Get other output fields using the converted outputFields slice
+			for _, field := range outputFields {
+				if field != "id" && field != "" {
+					if fieldColumn := result.GetColumn(field); fieldColumn != nil {
+						if fieldVal, err := fieldColumn.Get(i); err == nil {
+							resultItem.Fields[field] = fieldVal
 						}
 					}
 				}

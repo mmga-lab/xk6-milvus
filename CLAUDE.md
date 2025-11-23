@@ -8,10 +8,18 @@ xk6-milvus is a k6 extension for load testing Milvus vector databases. It provid
 
 ## Architecture
 
-The project follows a simple, single-file architecture:
+The project follows k6 extension best practices with a RootModule/ModuleInstance pattern:
 - **milvus.go**: Contains the entire k6 extension implementation
+- **RootModule**: Global module instance that creates module instances for each VU
+- **Milvus**: VU-specific module instance with access to VU context
+- **Client**: Milvus client wrapper using VU context for proper lifecycle management
 - Wraps the official Milvus Go SDK to provide k6-friendly methods
-- Registers as a k6 module using `modules.Register("k6/x/milvus", new(Milvus))`
+- Registers using `modules.Register("k6/x/milvus", new(RootModule))`
+
+### Module Pattern
+- Each VU gets its own Milvus instance for proper isolation
+- VU context is used for all operations (not background context)
+- Exports both default and named exports following ES module conventions
 
 ## Common Commands
 
@@ -21,7 +29,7 @@ The project follows a simple, single-file architecture:
 go install go.k6.io/xk6/cmd/xk6@latest
 
 # Build k6 with milvus extension
-xk6 build --with github.com/zilliz/xk6-milvus=.
+xk6 build --with github.com/mmga-lab/xk6-milvus=.
 ```
 
 ### Run Tests
