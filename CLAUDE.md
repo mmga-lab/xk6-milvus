@@ -57,9 +57,10 @@ The module exports a single `Milvus` struct that implements all methods. Each me
 ### Available Methods
 - **Client**: `client(address)`, `close()`
 - **Collections**: `createCollection()`, `createCollectionFromJSON()`, `createCollectionSimple()`, `dropCollection()`, `hasCollection()`, `loadCollection()`, `releaseCollection()`
-- **Data**: `insert()`, `insertVectors()` (backward compatibility)
+- **Data**: `insert()`, `insertVectors()` (backward compatibility), `upsert()`
 - **Search**: `search()`, `searchSimple()` (backward compatibility)
 - **Index**: `createIndex()`, `createIndexSimple()` (backward compatibility)
+- **Functions**: Support for BM25 and TextEmbedding functions in schema
 
 ### SDK Implementation Details
 - Uses latest Milvus client SDK: `github.com/milvus-io/milvus/client/v2/milvusclient`
@@ -88,8 +89,12 @@ All methods return errors to k6's JavaScript runtime. The new SDK provides bette
 3. **Collection Loading**: Collections must be loaded before search operations using task.Await()
 4. **Index Creation**: Create indexes after inserting data, operations are async and require task.Await()
 5. **SDK Upgrade**: Updated from v2.4.2 to v2.5.4 with breaking API changes requiring option pattern
-6. **Flexible Schema**: Supports complex schemas with multiple field types (Int64, Float, Double, Bool, VarChar, FloatVector, etc.)
+6. **Flexible Schema**: Supports complex schemas with multiple field types (Int64, Float, Double, Bool, VarChar, FloatVector, SparseFloatVector, etc.)
 7. **Backward Compatibility**: Simple methods (createCollectionSimple, insertVectors, searchSimple) maintain compatibility with older usage patterns
+8. **Functions Support**: Supports BM25 and TextEmbedding functions for automatic sparse vector generation
+9. **Text Analysis**: Supports text analyzer and match functionality for VarChar fields
+10. **Upsert Operations**: Supports upsert (insert or update) operations for data modification
+11. **Sharding**: Supports configurable shard numbers for better performance (via numShards in schema)
 
 ## API Usage Examples
 
@@ -138,3 +143,50 @@ const searchParams = {
 };
 const results = client.search('products', searchVectors, 10, searchParams);
 ```
+
+### BM25 Full-Text Search with Upsert
+```javascript
+// Create collection with BM25 function
+const schema = {
+    name: 'documents',
+    numShards: 16,
+    fields: [
+        { name: 'id', dataType: 'Int64', isPrimaryKey: true },
+        {
+            name: 'text',
+            dataType: 'VarChar',
+            maxLength: 25536,
+            enableAnalyzer: true,
+            analyzerParams: { type: 'standard' },
+            enableMatch: true
+        },
+        { name: 'sparse', dataType: 'SparseFloatVector' }
+    ],
+    functions: [
+        {
+            name: 'text_bm25_emb',
+            functionType: 'BM25',
+            inputFieldNames: ['text'],
+            outputFieldNames: ['sparse']
+        }
+    ]
+};
+client.createCollectionFromJSON(JSON.stringify(schema));
+client.loadCollection('documents');
+
+// Upsert data (insert or update)
+const data = {
+    id: [1, 2, 3],
+    text: ['Document one content', 'Document two content', 'Document three content']
+};
+client.upsert('documents', data);
+```
+
+## Additional Resources
+
+- Milvus Go SDK source code: `/Users/zilliz/workspace/milvus/client`
+- Module path: `github.com/mmga-lab/xk6-milvus` (note: different from repository path `github.com/zilliz/xk6-milvus`)
+- Example tests:
+  - `example/test-milvus.js` - Simple vector operations
+  - `example/flexible-test.js` - Complex schema with multiple fields
+  - `example/upsert-test.js` - Upsert operations with BM25 function (requires xk6-faker)

@@ -14,8 +14,11 @@ k6 extension for load testing Milvus vector database.
 # Install xk6
 go install go.k6.io/xk6/cmd/xk6@latest
 
-# Build k6 with milvus extension
+# Build k6 with milvus extension only
 xk6 build --with github.com/zilliz/xk6-milvus=.
+
+# Build with milvus and faker extensions (for upsert-test.js)
+xk6 build --with github.com/zilliz/xk6-milvus=. --with github.com/grafana/xk6-faker
 ```
 
 ## Usage
@@ -56,16 +59,37 @@ export MILVUS_HOST=your-milvus-host:19530
 
 ## Available Methods
 
+### Client Management
 - `milvus.client(address)` - Create a new Milvus client
-- `client.createCollection(name, dimension)` - Create a collection
+- `client.close()` - Close connection
+
+### Collection Operations
+- `client.createCollection(schema)` - Create collection with flexible schema
+- `client.createCollectionFromJSON(schemaJSON)` - Create from JSON schema
+- `client.createCollectionSimple(name, dimension)` - Simple collection creation
 - `client.dropCollection(name)` - Drop a collection
 - `client.hasCollection(name)` - Check if collection exists
-- `client.insert(collectionName, vectors)` - Insert vectors
-- `client.search(collectionName, vectors, topK)` - Search vectors
-- `client.createIndex(collectionName, fieldName)` - Create index
-- `client.loadCollection(collectionName)` - Load collection
-- `client.releaseCollection(collectionName)` - Release collection
-- `client.close()` - Close connection
+- `client.loadCollection(collectionName)` - Load collection into memory
+- `client.releaseCollection(collectionName)` - Release collection from memory
+
+### Data Operations
+- `client.insert(collectionName, data)` - Insert data with multiple fields
+- `client.insertVectors(collectionName, vectors)` - Simple vector insertion
+- `client.upsert(collectionName, data)` - Upsert (insert or update) data
+
+### Search Operations
+- `client.search(collectionName, vectors, topK, params)` - Search with filters
+- `client.searchSimple(collectionName, vectors, topK)` - Simple search
+
+### Index Operations
+- `client.createIndex(collectionName, fieldName, params)` - Create index with params
+- `client.createIndexSimple(collectionName, fieldName)` - Create simple index
+
+### Advanced Features
+- Support for BM25 and TextEmbedding functions
+- Text analyzer and match functionality
+- Sparse vectors (SparseFloatVector)
+- Configurable shard numbers
 
 ## Test Options
 
@@ -79,6 +103,19 @@ export const options = {
 };
 ```
 
+## Examples
+
+### Simple Vector Operations
+See `example/test-milvus.js` for basic vector insertion and search.
+
+### Complex Schema with Multiple Fields
+See `example/flexible-test.js` for advanced schema with multiple field types.
+
+### Upsert with BM25 Full-Text Search
+See `example/upsert-test.js` and `example/UPSERT_TEST_README.md` for BM25 function usage.
+
 ## Environment Variables
 
-- `MILVUS_HOST` - Milvus server address (default: localhost:19530)
+- `MILVUS_HOST` / `MILVUS_URI` - Milvus server address (default: localhost:19530)
+- `MILVUS_TOKEN` - Authentication token (default: root:Milvus)
+- `UPSERT_BATCH_SIZE` - Batch size for upsert operations (default: 5000)

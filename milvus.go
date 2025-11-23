@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"strings"
 
 	"github.com/milvus-io/milvus/client/v2/milvusclient"
 	"github.com/milvus-io/milvus/client/v2/entity"
@@ -25,27 +26,53 @@ type Client struct {
 
 // Field represents a field definition for schema
 type Field struct {
-	Name         string `json:"name"`
-	DataType     string `json:"dataType"`
-	IsPrimaryKey bool   `json:"isPrimaryKey,omitempty"`
-	IsAutoID     bool   `json:"isAutoID,omitempty"`
-	Dimension    int64  `json:"dimension,omitempty"`
-	Description  string `json:"description,omitempty"`
-	MaxLength    int64  `json:"maxLength,omitempty"`
+	Name              string                 `json:"name"`
+	DataType          string                 `json:"dataType"`
+	IsPrimaryKey      bool                   `json:"isPrimaryKey,omitempty"`
+	IsAutoID          bool                   `json:"isAutoID,omitempty"`
+	Dimension         int64                  `json:"dimension,omitempty"`
+	Description       string                 `json:"description,omitempty"`
+	MaxLength         int64                  `json:"maxLength,omitempty"`
+	EnableAnalyzer    bool                   `json:"enableAnalyzer,omitempty"`
+	EnableMatch       bool                   `json:"enableMatch,omitempty"`
+	AnalyzerParams    map[string]interface{} `json:"analyzerParams,omitempty"`
+}
+
+// Function represents a function definition for schema
+type Function struct {
+	Name             string            `json:"name"`
+	FunctionType     string            `json:"functionType"`
+	InputFieldNames  []string          `json:"inputFieldNames"`
+	OutputFieldNames []string          `json:"outputFieldNames"`
+	Params           map[string]string `json:"params,omitempty"`
 }
 
 // Schema represents a collection schema
 type Schema struct {
-	Name        string  `json:"name"`
-	Description string  `json:"description"`
-	Fields      []Field `json:"fields"`
+	Name        string     `json:"name"`
+	Description string     `json:"description"`
+	Fields      []Field    `json:"fields"`
+	Functions   []Function `json:"functions,omitempty"`
+	NumShards   int32      `json:"numShards,omitempty"`
 }
 
-func (*Milvus) Client(address string) (*Client, error) {
+func (*Milvus) Client(address string, token ...string) (*Client, error) {
 	ctx := context.Background()
-	c, err := milvusclient.New(ctx, &milvusclient.ClientConfig{
+
+	config := &milvusclient.ClientConfig{
 		Address: address,
-	})
+	}
+
+	// Parse token if provided (format: "username:password")
+	if len(token) > 0 && token[0] != "" {
+		parts := strings.Split(token[0], ":")
+		if len(parts) == 2 {
+			config.Username = parts[0]
+			config.Password = parts[1]
+		}
+	}
+
+	c, err := milvusclient.New(ctx, config)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create milvus client: %v", err)
 	}
@@ -135,10 +162,54 @@ func (c *Client) CreateCollection(schema Schema) error {
 			entityField = entityField.WithMaxLength(field.MaxLength)
 		}
 
+		// Set analyzer for text fields
+		if field.EnableAnalyzer {
+			entityField = entityField.WithEnableAnalyzer(true)
+			if field.AnalyzerParams != nil {
+				entityField = entityField.WithAnalyzerParams(field.AnalyzerParams)
+			}
+		}
+
+		// Set enable match for text fields
+		if field.EnableMatch {
+			entityField = entityField.WithEnableMatch(true)
+		}
+
 		entitySchema = entitySchema.WithField(entityField)
 	}
 
+	// Add functions to schema
+	for _, fn := range schema.Functions {
+		entityFunc := entity.NewFunction().
+			WithName(fn.Name).
+			WithInputFields(fn.InputFieldNames...).
+			WithOutputFields(fn.OutputFieldNames...)
+
+		// Set function type
+		switch fn.FunctionType {
+		case "BM25":
+			entityFunc = entityFunc.WithType(entity.FunctionTypeBM25)
+		case "TextEmbedding":
+			entityFunc = entityFunc.WithType(entity.FunctionTypeTextEmbedding)
+		default:
+			return fmt.Errorf("unsupported function type: %s", fn.FunctionType)
+		}
+
+		// Add function params
+		for k, v := range fn.Params {
+			entityFunc = entityFunc.WithParam(k, v)
+		}
+
+		entitySchema = entitySchema.WithFunction(entityFunc)
+	}
+
 	option := milvusclient.NewCreateCollectionOption(schema.Name, entitySchema)
+
+	// Set shard number if specified
+	if schema.NumShards > 0 {
+		option = option.WithShardNum(schema.NumShards)
+	}
+
 	return c.client.CreateCollection(c.ctx, option)
 }
 
@@ -306,6 +377,155 @@ func (c *Client) InsertVectors(collectionName string, vectors [][]float32) ([]in
 	return c.Insert(collectionName, data)
 }
 
+// Upsert supports multiple field types with flexible data structure
+func (c *Client) Upsert(collectionName string, data map[string]interface{}) ([]int64, error) {
+	var columns []column.Column
+
+	for fieldName, fieldData := range data {
+		switch v := fieldData.(type) {
+		case [][]float32:
+			// Float vector field
+			if len(v) > 0 {
+				dim := len(v[0])
+				columns = append(columns, column.NewColumnFloatVector(fieldName, dim, v))
+			}
+		case []int64:
+			// Int64 field
+			columns = append(columns, column.NewColumnInt64(fieldName, v))
+		case []int32:
+			// Int32 field
+			columns = append(columns, column.NewColumnInt32(fieldName, v))
+		case []float32:
+			// Float field
+			columns = append(columns, column.NewColumnFloat(fieldName, v))
+		case []float64:
+			// Double field
+			columns = append(columns, column.NewColumnDouble(fieldName, v))
+		case []string:
+			// String/VarChar field
+			columns = append(columns, column.NewColumnVarChar(fieldName, v))
+		case []bool:
+			// Bool field
+			columns = append(columns, column.NewColumnBool(fieldName, v))
+		case []interface{}:
+			// Handle JavaScript arrays converted to []interface{}
+			if len(v) == 0 {
+				continue
+			}
+
+			// Determine field type by examining the first element
+			switch v[0].(type) {
+			case int64:
+				// Int64 field (common for ID fields)
+				ids := make([]int64, len(v))
+				for i, val := range v {
+					ids[i] = val.(int64)
+				}
+				columns = append(columns, column.NewColumnInt64(fieldName, ids))
+			case string:
+				// String/VarChar field
+				strs := make([]string, len(v))
+				for i, val := range v {
+					strs[i] = val.(string)
+				}
+				columns = append(columns, column.NewColumnVarChar(fieldName, strs))
+			case float64:
+				// JavaScript numbers are float64, check if they should be treated as different types
+				// For upsert, we need to handle both int64 (id field) and other numeric types
+				// Try to detect if this is an ID field (integers)
+				isInteger := true
+				for _, val := range v {
+					f := val.(float64)
+					if f != float64(int64(f)) {
+						isInteger = false
+						break
+					}
+				}
+
+				if isInteger && fieldName == "id" {
+					// ID field - convert to int64
+					ids := make([]int64, len(v))
+					for i, val := range v {
+						ids[i] = int64(val.(float64))
+					}
+					columns = append(columns, column.NewColumnInt64(fieldName, ids))
+				} else if fieldName == "rating" {
+					// rating is defined as Double in schema
+					doubles := make([]float64, len(v))
+					for i, val := range v {
+						doubles[i] = val.(float64)
+					}
+					columns = append(columns, column.NewColumnDouble(fieldName, doubles))
+				} else {
+					// Other numeric fields are Float, convert to float32
+					floats := make([]float32, len(v))
+					for i, val := range v {
+						floats[i] = float32(val.(float64))
+					}
+					columns = append(columns, column.NewColumnFloat(fieldName, floats))
+				}
+			case bool:
+				// Bool field
+				bools := make([]bool, len(v))
+				for i, val := range v {
+					bools[i] = val.(bool)
+				}
+				columns = append(columns, column.NewColumnBool(fieldName, bools))
+			case []interface{}:
+				// Vector field (array of arrays)
+				if len(v) > 0 {
+					firstVec := v[0].([]interface{})
+					dim := len(firstVec)
+					vectors := make([][]float32, len(v))
+					for i, vecInterface := range v {
+						vec := vecInterface.([]interface{})
+						floatVec := make([]float32, len(vec))
+						for j, val := range vec {
+							floatVec[j] = float32(val.(float64))
+						}
+						vectors[i] = floatVec
+					}
+					columns = append(columns, column.NewColumnFloatVector(fieldName, dim, vectors))
+				}
+			default:
+				return nil, fmt.Errorf("unsupported interface{} element type for field %s: %T", fieldName, v[0])
+			}
+		default:
+			return nil, fmt.Errorf("unsupported field type for field %s: %T", fieldName, fieldData)
+		}
+	}
+
+	if len(columns) == 0 {
+		return nil, fmt.Errorf("no valid columns provided")
+	}
+
+	// Use the same option type for upsert - columnBasedDataOption implements both InsertOption and UpsertOption
+	option := milvusclient.NewColumnBasedInsertOption(collectionName, columns...)
+	result, err := c.client.Upsert(c.ctx, option)
+	if err != nil {
+		return nil, fmt.Errorf("failed to upsert: %v", err)
+	}
+
+	// Return placeholder IDs
+	vectorCount := int64(0)
+	for _, col := range columns {
+		if col.Len() > int(vectorCount) {
+			vectorCount = int64(col.Len())
+		}
+	}
+
+	ids := make([]int64, vectorCount)
+	for i := range ids {
+		ids[i] = int64(i)
+	}
+
+	if result.UpsertCount != vectorCount {
+		return nil, fmt.Errorf("upsert count mismatch: expected %d, got %d", vectorCount, result.UpsertCount)
+	}
+
+	return ids, nil
+}
+
 // Search with flexible parameters
 func (c *Client) Search(collectionName string, vectors [][]float32, topK int, params map[string]interface{}) ([]SearchResult, error) {
 	searchVectors := make([]entity.Vector, len(vectors))
@@ -406,6 +626,8 @@ func (c *Client) CreateIndex(collectionName string, fieldName string, indexParam
 			metricType = entity.IP
 		case "COSINE":
 			metricType = entity.COSINE
+		case "BM25":
+			metricType = entity.BM25
 		}
 	}
 
@@ -448,6 +670,18 @@ func (c *Client) CreateIndex(collectionName string, fieldName string, indexParam
 			efConstruction = ef
 		}
 		idx = index.NewHNSWIndex(metricType, M, efConstruction)
+	case "SPARSE_INVERTED_INDEX":
+		dropRatio := 0.0
+		if dr, ok := indexParams["dropRatio"].(float64); ok {
+			dropRatio = dr
+		}
+		idx = index.NewSparseInvertedIndex(metricType, dropRatio)
+	case "SPARSE_WAND":
+		dropRatio := 0.0
+		if dr, ok := indexParams["dropRatio"].(float64); ok {
+			dropRatio = dr
+		}
+		idx = index.NewSparseWANDIndex(metricType, dropRatio)
 	default:
 		return fmt.Errorf("unsupported index type: %s", indexType)
 	}
