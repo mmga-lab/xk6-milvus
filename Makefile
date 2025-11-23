@@ -51,7 +51,24 @@ examples: build ## Build k6 and show available examples
 	@./k6 version
 	@echo ""
 	@echo "Available examples:"
-	@ls -1 examples/*.js | sed 's/^/  - /'
+	@echo "  Beginner:"
+	@echo "    - examples/basic-operations.js"
+	@echo "    - examples/collection-management.js"
+	@echo "  Intermediate:"
+	@echo "    - examples/vector-search.js"
+	@echo "  Advanced:"
+	@echo "    - examples/hybrid-search.js"
+	@echo "    - examples/full-text-search.js"
+	@echo ""
+	@echo "Run: make run-example FILE=<filename>"
+
+run-examples: build ## Run all examples in sequence
+	@echo "Running all examples..."
+	@./k6 run examples/basic-operations.js
+	@./k6 run examples/collection-management.js
+	@./k6 run examples/vector-search.js
+	@./k6 run examples/hybrid-search.js
+	@./k6 run examples/full-text-search.js
 
 run-example: build ## Run specific example (usage: make run-example FILE=basic-operations.js)
 	@if [ -z "$(FILE)" ]; then \

@@ -10,16 +10,16 @@ import (
 )
 
 // CreateIndex creates an index on a field
-func (c *Client) CreateIndex(fieldName string, indexParams map[string]interface{}, collectionName ...string) *OperationResult {
+func (c *Client) CreateIndex(fieldName string, indexParams map[string]interface{}, collectionName ...string) interface{} {
 	start := time.Now()
 
 	coll := c.getCollectionName(collectionName...)
 	if coll == "" {
-		return &OperationResult{
+		return toMap(&OperationResult{
 			Success:      false,
 			ResponseTime: float64(time.Since(start).Milliseconds()),
 			Error:        "collection name required",
-		}
+		})
 	}
 
 	var idx index.Index
@@ -97,36 +97,36 @@ func (c *Client) CreateIndex(fieldName string, indexParams map[string]interface{
 		}
 		idx = index.NewSparseWANDIndex(metricType, dropRatio)
 	default:
-		return &OperationResult{
+		return toMap(&OperationResult{
 			Success:      false,
 			ResponseTime: float64(time.Since(start).Milliseconds()),
 			Error:        fmt.Sprintf("unsupported index type: %s", indexType),
-		}
+		})
 	}
 
 	option := milvusclient.NewCreateIndexOption(coll, fieldName, idx)
 	task, err := c.client.CreateIndex(c.ctx, option)
 	if err != nil {
-		return &OperationResult{
+		return toMap(&OperationResult{
 			Success:      false,
 			ResponseTime: float64(time.Since(start).Milliseconds()),
 			Error:        fmt.Sprintf("failed to create index: %v", err),
-		}
+		})
 	}
 
 	// Wait for index creation to complete
 	err = task.Await(c.ctx)
 	if err != nil {
-		return &OperationResult{
+		return toMap(&OperationResult{
 			Success:      false,
 			ResponseTime: float64(time.Since(start).Milliseconds()),
 			Error:        fmt.Sprintf("failed to wait for index creation: %v", err),
-		}
+		})
 	}
 
-	return &OperationResult{
+	return toMap(&OperationResult{
 		Success:      true,
 		ResponseTime: float64(time.Since(start).Milliseconds()),
 		Result:       map[string]interface{}{"field": fieldName, "index_type": indexType},
-	}
+	})
 }

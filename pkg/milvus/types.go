@@ -14,8 +14,8 @@ type OperationResult struct {
 	ResponseTime float64     `json:"response_time_ms"`
 	Result       interface{} `json:"result,omitempty"`
 	Error        string      `json:"error,omitempty"`
-	Empty        bool        `json:"empty,omitempty"`
-	Recall       float32     `json:"recall,omitempty"`
+	Empty        bool        `json:"empty"`
+	Recall       float32     `json:"recall"`
 }
 
 // Client represents a Milvus client instance

@@ -1,6 +1,7 @@
 package milvus
 
 import (
+	"encoding/json"
 	"fmt"
 	"time"
 
@@ -9,16 +10,16 @@ import (
 )
 
 // Search performs vector similarity search with Recall support
-func (c *Client) Search(vectors [][]float32, topK int, params map[string]interface{}, collectionName ...string) *OperationResult {
+func (c *Client) Search(vectors [][]float32, topK int, params map[string]interface{}, collectionName ...string) interface{} {
 	start := time.Now()
 
 	coll := c.getCollectionName(collectionName...)
 	if coll == "" {
-		return &OperationResult{
+		return toMap(&OperationResult{
 			Success:      false,
 			ResponseTime: float64(time.Since(start).Milliseconds()),
 			Error:        "collection name required",
-		}
+		})
 	}
 
 	// Convert vectors to entity.Vector
@@ -68,11 +69,11 @@ func (c *Client) Search(vectors [][]float32, topK int, params map[string]interfa
 	// Execute search
 	resultSets, err := c.client.Search(c.ctx, searchOption)
 	if err != nil {
-		return &OperationResult{
+		return toMap(&OperationResult{
 			Success:      false,
 			ResponseTime: float64(time.Since(start).Milliseconds()),
 			Error:        fmt.Sprintf("failed to search: %v", err),
-		}
+		})
 	}
 
 	// Convert results with pre-allocated capacity
@@ -121,34 +122,70 @@ func (c *Client) Search(vectors [][]float32, topK int, params map[string]interfa
 		}
 	}
 
-	return &OperationResult{
-		Success:      !isEmpty,
+	return toMap(&OperationResult{
+		Success:      true,
 		ResponseTime: float64(time.Since(start).Milliseconds()),
 		Result:       results,
 		Empty:        isEmpty,
 		Recall:       recall, // NEW: Expose recall metric
-	}
+	})
 }
 
 // HybridSearch performs multi-vector hybrid search with reranking (NEW - from Locust)
-func (c *Client) HybridSearch(requests []HybridSearchRequest, reranker Reranker, limit int, outputFields []interface{}, collectionName ...string) *OperationResult {
+func (c *Client) HybridSearch(requestsInput interface{}, rerankerInput interface{}, limit int, outputFields []interface{}, collectionName ...string) interface{} {
 	start := time.Now()
 
 	coll := c.getCollectionName(collectionName...)
 	if coll == "" {
-		return &OperationResult{
+		return toMap(&OperationResult{
 			Success:      false,
 			ResponseTime: float64(time.Since(start).Milliseconds()),
 			Error:        "collection name required",
-		}
+		})
+	}
+
+	// Convert interface{} to []HybridSearchRequest using JSON marshal/unmarshal
+	var requests []HybridSearchRequest
+	requestsBytes, err := json.Marshal(requestsInput)
+	if err != nil {
+		return toMap(&OperationResult{
+			Success:      false,
+			ResponseTime: float64(time.Since(start).Milliseconds()),
+			Error:        fmt.Sprintf("failed to marshal requests: %v", err),
+		})
+	}
+	if err := json.Unmarshal(requestsBytes, &requests); err != nil {
+		return toMap(&OperationResult{
+			Success:      false,
+			ResponseTime: float64(time.Since(start).Milliseconds()),
+			Error:        fmt.Sprintf("failed to unmarshal requests: %v", err),
+		})
+	}
+
+	// Convert interface{} to Reranker using JSON marshal/unmarshal
+	var reranker Reranker
+	rerankerBytes, err := json.Marshal(rerankerInput)
+	if err != nil {
+		return toMap(&OperationResult{
+			Success:      false,
+			ResponseTime: float64(time.Since(start).Milliseconds()),
+			Error:        fmt.Sprintf("failed to marshal reranker: %v", err),
+		})
+	}
+	if err := json.Unmarshal(rerankerBytes, &reranker); err != nil {
+		return toMap(&OperationResult{
+			Success:      false,
+			ResponseTime: float64(time.Since(start).Milliseconds()),
+			Error:        fmt.Sprintf("failed to unmarshal reranker: %v", err),
+		})
 	}
 
 	if len(requests) == 0 {
-		return &OperationResult{
+		return toMap(&OperationResult{
 			Success:      false,
 			ResponseTime: float64(time.Since(start).Milliseconds()),
 			Error:        "at least one search request required",
-		}
+		})
 	}
 
 	// Build ANN requests
@@ -220,11 +257,11 @@ func (c *Client) HybridSearch(requests []HybridSearchRequest, reranker Reranker,
 	// Execute hybrid search
 	resultSets, err := c.client.HybridSearch(c.ctx, hybridOption)
 	if err != nil {
-		return &OperationResult{
+		return toMap(&OperationResult{
 			Success:      false,
 			ResponseTime: float64(time.Since(start).Milliseconds()),
 			Error:        fmt.Sprintf("failed to hybrid search: %v", err),
-		}
+		})
 	}
 
 	// Convert results with pre-allocated capacity
@@ -273,26 +310,26 @@ func (c *Client) HybridSearch(requests []HybridSearchRequest, reranker Reranker,
 		}
 	}
 
-	return &OperationResult{
-		Success:      !isEmpty,
+	return toMap(&OperationResult{
+		Success:      true,
 		ResponseTime: float64(time.Since(start).Milliseconds()),
 		Result:       results,
 		Empty:        isEmpty,
 		Recall:       recall,
-	}
+	})
 }
 
 // Query performs scalar query without vectors (NEW - from Locust)
-func (c *Client) Query(filter string, outputFields []interface{}, collectionName ...string) *OperationResult {
+func (c *Client) Query(filter string, outputFields []interface{}, collectionName ...string) interface{} {
 	start := time.Now()
 
 	coll := c.getCollectionName(collectionName...)
 	if coll == "" {
-		return &OperationResult{
+		return toMap(&OperationResult{
 			Success:      false,
 			ResponseTime: float64(time.Since(start).Milliseconds()),
 			Error:        "collection name required",
-		}
+		})
 	}
 
 	// Convert outputFields
@@ -313,11 +350,11 @@ func (c *Client) Query(filter string, outputFields []interface{}, collectionName
 
 	resultSet, err := c.client.Query(c.ctx, option)
 	if err != nil {
-		return &OperationResult{
+		return toMap(&OperationResult{
 			Success:      false,
 			ResponseTime: float64(time.Since(start).Milliseconds()),
 			Error:        fmt.Sprintf("failed to query: %v", err),
-		}
+		})
 	}
 
 	// Convert results with pre-allocated capacity
@@ -340,10 +377,10 @@ func (c *Client) Query(filter string, outputFields []interface{}, collectionName
 		results = append(results, result)
 	}
 
-	return &OperationResult{
-		Success:      !isEmpty,
+	return toMap(&OperationResult{
+		Success:      true,
 		ResponseTime: float64(time.Since(start).Milliseconds()),
 		Result:       results,
 		Empty:        isEmpty,
-	}
+	})
 }

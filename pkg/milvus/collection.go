@@ -10,24 +10,43 @@ import (
 )
 
 // CreateCollectionFromJSON creates a collection from a JSON schema string
-func (c *Client) CreateCollectionFromJSON(schemaJSON string) *OperationResult {
+func (c *Client) CreateCollectionFromJSON(schemaJSON string) interface{} {
 	start := time.Now()
 
 	var schema Schema
 	if err := json.Unmarshal([]byte(schemaJSON), &schema); err != nil {
-		return &OperationResult{
+		return toMap(&OperationResult{
 			Success:      false,
 			ResponseTime: float64(time.Since(start).Milliseconds()),
 			Error:        fmt.Sprintf("failed to parse schema JSON: %v", err),
-		}
+		})
 	}
 
 	return c.CreateCollection(schema)
 }
 
 // CreateCollection creates a collection with the given schema
-func (c *Client) CreateCollection(schema Schema) *OperationResult {
+func (c *Client) CreateCollection(schemaInput interface{}) interface{} {
 	start := time.Now()
+
+	// Convert interface{} to Schema using JSON marshal/unmarshal
+	// This ensures proper handling of JSON tags from JavaScript objects
+	var schema Schema
+	schemaBytes, err := json.Marshal(schemaInput)
+	if err != nil {
+		return toMap(&OperationResult{
+			Success:      false,
+			ResponseTime: float64(time.Since(start).Milliseconds()),
+			Error:        fmt.Sprintf("failed to marshal schema: %v", err),
+		})
+	}
+	if err := json.Unmarshal(schemaBytes, &schema); err != nil {
+		return toMap(&OperationResult{
+			Success:      false,
+			ResponseTime: float64(time.Since(start).Milliseconds()),
+			Error:        fmt.Sprintf("failed to unmarshal schema: %v", err),
+		})
+	}
 
 	entitySchema := entity.NewSchema().
 		WithName(schema.Name).
@@ -40,11 +59,11 @@ func (c *Client) CreateCollection(schema Schema) *OperationResult {
 
 		// Set data type
 		if field.DataType == "" {
-			return &OperationResult{
+			return toMap(&OperationResult{
 				Success:      false,
 				ResponseTime: float64(time.Since(start).Milliseconds()),
 				Error:        fmt.Sprintf("field %s has empty dataType", field.Name),
-			}
+			})
 		}
 
 		switch field.DataType {
@@ -79,11 +98,11 @@ func (c *Client) CreateCollection(schema Schema) *OperationResult {
 		case "SparseFloatVector":
 			entityField = entityField.WithDataType(entity.FieldTypeSparseVector)
 		default:
-			return &OperationResult{
+			return toMap(&OperationResult{
 				Success:      false,
 				ResponseTime: float64(time.Since(start).Milliseconds()),
 				Error:        fmt.Sprintf("unsupported data type: '%s' for field '%s'", field.DataType, field.Name),
-			}
+			})
 		}
 
 		if field.IsPrimaryKey {
@@ -121,11 +140,11 @@ func (c *Client) CreateCollection(schema Schema) *OperationResult {
 		case "TextEmbedding":
 			entityFunc = entityFunc.WithType(entity.FunctionTypeTextEmbedding)
 		default:
-			return &OperationResult{
+			return toMap(&OperationResult{
 				Success:      false,
 				ResponseTime: float64(time.Since(start).Milliseconds()),
 				Error:        fmt.Sprintf("unsupported function type: %s", fn.FunctionType),
-			}
+			})
 		}
 
 		for k, v := range fn.Params {
@@ -140,24 +159,24 @@ func (c *Client) CreateCollection(schema Schema) *OperationResult {
 		option = option.WithShardNum(schema.NumShards)
 	}
 
-	err := c.client.CreateCollection(c.ctx, option)
+	err = c.client.CreateCollection(c.ctx, option)
 	if err != nil {
-		return &OperationResult{
+		return toMap(&OperationResult{
 			Success:      false,
 			ResponseTime: float64(time.Since(start).Milliseconds()),
 			Error:        fmt.Sprintf("failed to create collection: %v", err),
-		}
+		})
 	}
 
-	return &OperationResult{
+	return toMap(&OperationResult{
 		Success:      true,
 		ResponseTime: float64(time.Since(start).Milliseconds()),
 		Result:       map[string]interface{}{"collection": schema.Name},
-	}
+	})
 }
 
 // DropCollection drops a collection
-func (c *Client) DropCollection(collectionName string) *OperationResult {
+func (c *Client) DropCollection(collectionName string) interface{} {
 	start := time.Now()
 
 	if collectionName == "" {
@@ -168,22 +187,22 @@ func (c *Client) DropCollection(collectionName string) *OperationResult {
 	err := c.client.DropCollection(c.ctx, option)
 
 	if err != nil {
-		return &OperationResult{
+		return toMap(&OperationResult{
 			Success:      false,
 			ResponseTime: float64(time.Since(start).Milliseconds()),
 			Error:        fmt.Sprintf("failed to drop collection: %v", err),
-		}
+		})
 	}
 
-	return &OperationResult{
+	return toMap(&OperationResult{
 		Success:      true,
 		ResponseTime: float64(time.Since(start).Milliseconds()),
 		Result:       map[string]interface{}{"collection": collectionName},
-	}
+	})
 }
 
 // HasCollection checks if a collection exists
-func (c *Client) HasCollection(collectionName string) *OperationResult {
+func (c *Client) HasCollection(collectionName string) interface{} {
 	start := time.Now()
 
 	if collectionName == "" {
@@ -194,22 +213,22 @@ func (c *Client) HasCollection(collectionName string) *OperationResult {
 	has, err := c.client.HasCollection(c.ctx, option)
 
 	if err != nil {
-		return &OperationResult{
+		return toMap(&OperationResult{
 			Success:      false,
 			ResponseTime: float64(time.Since(start).Milliseconds()),
 			Error:        fmt.Sprintf("failed to check collection: %v", err),
-		}
+		})
 	}
 
-	return &OperationResult{
+	return toMap(&OperationResult{
 		Success:      true,
 		ResponseTime: float64(time.Since(start).Milliseconds()),
 		Result:       map[string]interface{}{"exists": has},
-	}
+	})
 }
 
 // LoadCollection loads a collection into memory
-func (c *Client) LoadCollection(collectionName string) *OperationResult {
+func (c *Client) LoadCollection(collectionName string) interface{} {
 	start := time.Now()
 
 	if collectionName == "" {
@@ -219,32 +238,32 @@ func (c *Client) LoadCollection(collectionName string) *OperationResult {
 	option := milvusclient.NewLoadCollectionOption(collectionName)
 	task, err := c.client.LoadCollection(c.ctx, option)
 	if err != nil {
-		return &OperationResult{
+		return toMap(&OperationResult{
 			Success:      false,
 			ResponseTime: float64(time.Since(start).Milliseconds()),
 			Error:        fmt.Sprintf("failed to load collection: %v", err),
-		}
+		})
 	}
 
 	// Wait for collection to be loaded
 	err = task.Await(c.ctx)
 	if err != nil {
-		return &OperationResult{
+		return toMap(&OperationResult{
 			Success:      false,
 			ResponseTime: float64(time.Since(start).Milliseconds()),
 			Error:        fmt.Sprintf("failed to wait for collection load: %v", err),
-		}
+		})
 	}
 
-	return &OperationResult{
+	return toMap(&OperationResult{
 		Success:      true,
 		ResponseTime: float64(time.Since(start).Milliseconds()),
 		Result:       map[string]interface{}{"collection": collectionName},
-	}
+	})
 }
 
 // ReleaseCollection releases a collection from memory
-func (c *Client) ReleaseCollection(collectionName string) *OperationResult {
+func (c *Client) ReleaseCollection(collectionName string) interface{} {
 	start := time.Now()
 
 	if collectionName == "" {
@@ -255,16 +274,16 @@ func (c *Client) ReleaseCollection(collectionName string) *OperationResult {
 	err := c.client.ReleaseCollection(c.ctx, option)
 
 	if err != nil {
-		return &OperationResult{
+		return toMap(&OperationResult{
 			Success:      false,
 			ResponseTime: float64(time.Since(start).Milliseconds()),
 			Error:        fmt.Sprintf("failed to release collection: %v", err),
-		}
+		})
 	}
 
-	return &OperationResult{
+	return toMap(&OperationResult{
 		Success:      true,
 		ResponseTime: float64(time.Since(start).Milliseconds()),
 		Result:       map[string]interface{}{"collection": collectionName},
-	}
+	})
 }

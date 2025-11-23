@@ -161,12 +161,18 @@ func (c *Client) convertNestedVectors(fieldName string, v []interface{}) (column
 
 		floatVec := make([]float32, len(vec))
 		for j, val := range vec {
-			floatVal, ok := val.(float64)
-			if !ok {
+			// Handle both float64 and int (JSON may encode integer floats as ints)
+			switch v := val.(type) {
+			case float64:
+				floatVec[j] = float32(v)
+			case int:
+				floatVec[j] = float32(v)
+			case int64:
+				floatVec[j] = float32(v)
+			default:
 				return nil, newError("convertNestedVectors", ErrInvalidDataType,
-					fmt.Sprintf("field %s: vector %d element %d is not float64", fieldName, i, j))
+					fmt.Sprintf("field %s: vector %d element %d is not float64: invalid data type", fieldName, i, j))
 			}
-			floatVec[j] = float32(floatVal)
 		}
 		vectors[i] = floatVec
 	}
