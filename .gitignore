@@ -29,3 +29,6 @@ Thumbs.db
 # Build artifacts
 dist/
 build/
+
+/deployment/volumes/
+*.html
