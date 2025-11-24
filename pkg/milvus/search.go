@@ -124,13 +124,25 @@ func (c *Client) Search(vectors [][]float32, topK int, params map[string]interfa
 		}
 	}
 
-	return toMap(&OperationResult{
+	result := &OperationResult{
 		Success:      true,
 		ResponseTime: float64(time.Since(start).Milliseconds()),
 		Result:       results,
 		Empty:        isEmpty,
 		Recall:       recall, // NEW: Expose recall metric
+	}
+
+	// Emit metrics
+	filterExpr, _ := params["expr"].(string)
+	c.emitOperationMetrics(result, MetricMetadata{
+		Operation:    "search",
+		Collection:   coll,
+		TopK:         topK,
+		FilterUsed:   filterExpr != "",
+		OutputFields: len(outputFields),
 	})
+
+	return toMap(result)
 }
 
 // HybridSearch performs multi-vector hybrid search with reranking (NEW - from Locust)
@@ -356,13 +368,34 @@ func (c *Client) HybridSearch(requestsInput interface{}, rerankerInput interface
 		}
 	}
 
-	return toMap(&OperationResult{
+	result := &OperationResult{
 		Success:      true,
 		ResponseTime: float64(time.Since(start).Milliseconds()),
 		Result:       results,
 		Empty:        isEmpty,
 		Recall:       recall,
+	}
+
+	// Emit metrics
+	isSparse := false
+	if len(requests) > 0 {
+		// Check if first request has sparse vectors (simplified detection)
+		if denseVectors, ok := requests[0].Vectors.([][]float32); !ok || len(denseVectors) == 0 {
+			isSparse = true
+		}
+	}
+	c.emitOperationMetrics(result, MetricMetadata{
+		Operation:    "hybrid_search",
+		Collection:   coll,
+		TopK:         limit,
+		OutputFields: len(fields),
+		IsHybrid:     true,
+		NumRequests:  len(requests),
+		RerankerType: reranker.Type,
+		IsSparse:     isSparse,
 	})
+
+	return toMap(result)
 }
 
 // Query performs scalar query without vectors (NEW - from Locust)
@@ -423,10 +456,20 @@ func (c *Client) Query(filter string, outputFields []interface{}, collectionName
 		results = append(results, result)
 	}
 
-	return toMap(&OperationResult{
+	result := &OperationResult{
 		Success:      true,
 		ResponseTime: float64(time.Since(start).Milliseconds()),
 		Result:       results,
 		Empty:        isEmpty,
+	}
+
+	// Emit metrics
+	c.emitOperationMetrics(result, MetricMetadata{
+		Operation:    "query",
+		Collection:   coll,
+		FilterUsed:   filter != "",
+		OutputFields: len(fields),
 	})
+
+	return toMap(result)
 }

@@ -5,6 +5,7 @@ import (
 
 	"github.com/milvus-io/milvus/client/v2/milvusclient"
 	"go.k6.io/k6/js/modules"
+	"go.k6.io/k6/metrics"
 )
 
 // OperationResult represents unified result structure for all operations
@@ -18,6 +19,38 @@ type OperationResult struct {
 	Recall       float32     `json:"recall"`
 }
 
+// Metrics holds all k6 metrics for Milvus operations
+type Metrics struct {
+	// Trend metrics - statistical distribution
+	OperationDuration    *metrics.Metric // Response time distribution
+	SearchRecall         *metrics.Metric // Search quality metric
+	IndexBuildDuration   *metrics.Metric // Index creation time
+
+	// Counter metrics - cumulative sum
+	OperationsTotal      *metrics.Metric // Total operations count
+	RowsInserted         *metrics.Metric // Total rows inserted/upserted
+	RowsDeleted          *metrics.Metric // Total rows deleted
+	RerankerOperations   *metrics.Metric // Reranker usage by type
+	CollectionsCreated   *metrics.Metric // Total collections created
+
+	// Rate metrics - ratio of non-zero values
+	Errors               *metrics.Metric // Error rate
+	EmptyResults         *metrics.Metric // Empty result rate
+	FilterUsed           *metrics.Metric // Filter expression usage rate
+	SparseVectorOps      *metrics.Metric // Sparse vector usage rate
+
+	// Gauge metrics - latest value
+	ResultCount          *metrics.Metric // Actual results returned
+	SearchTopK           *metrics.Metric // TopK parameter value
+	OutputFieldsCount    *metrics.Metric // Number of output fields
+	CollectionLoaded     *metrics.Metric // Collection load state (0/1)
+	HybridSearchRequests *metrics.Metric // ANN requests in hybrid search
+
+	// Throughput metrics
+	ThroughputMBPS       *metrics.Metric // Data throughput in MB/s (Gauge)
+	ThroughputRowsPS     *metrics.Metric // Row throughput in rows/s (Gauge)
+}
+
 // Client represents a Milvus client instance
 type Client struct {
 	client            *milvusclient.Client
@@ -25,6 +58,7 @@ type Client struct {
 	vu                modules.VU
 	config            *ClientConfig
 	defaultCollection string // Collection binding (Locust pattern) - deprecated, use config.DefaultCollection
+	metrics           *Metrics // k6 metrics for tracking operations
 }
 
 // Field represents a field definition for schema

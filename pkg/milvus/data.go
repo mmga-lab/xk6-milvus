@@ -40,13 +40,34 @@ func (c *Client) Insert(data map[string]interface{}, collectionName ...string) i
 		})
 	}
 
-	return toMap(&OperationResult{
+	opResult := &OperationResult{
 		Success:      true,
 		ResponseTime: float64(time.Since(start).Milliseconds()),
 		Result: map[string]interface{}{
 			"insert_count": result.InsertCount,
 		},
+	}
+
+	// Emit metrics with throughput calculation
+	rowCount := 0
+	// Get row count from first column
+	if len(data) > 0 {
+		for _, v := range data {
+			if arr, ok := v.([]interface{}); ok {
+				rowCount = len(arr)
+				break
+			}
+		}
+	}
+
+	c.emitOperationMetrics(opResult, MetricMetadata{
+		Operation:     "insert",
+		Collection:    coll,
+		RowCount:      rowCount,
+		DataSizeBytes: calculateDataSize(data),
 	})
+
+	return toMap(opResult)
 }
 
 // Upsert upserts data into a collection (insert or update)
@@ -81,13 +102,33 @@ func (c *Client) Upsert(data map[string]interface{}, collectionName ...string) i
 		})
 	}
 
-	return toMap(&OperationResult{
+	opResult := &OperationResult{
 		Success:      true,
 		ResponseTime: float64(time.Since(start).Milliseconds()),
 		Result: map[string]interface{}{
 			"upsert_count": result.UpsertCount,
 		},
+	}
+
+	// Emit metrics with throughput calculation
+	rowCount := 0
+	if len(data) > 0 {
+		for _, v := range data {
+			if arr, ok := v.([]interface{}); ok {
+				rowCount = len(arr)
+				break
+			}
+		}
+	}
+
+	c.emitOperationMetrics(opResult, MetricMetadata{
+		Operation:     "upsert",
+		Collection:    coll,
+		RowCount:      rowCount,
+		DataSizeBytes: calculateDataSize(data),
 	})
+
+	return toMap(opResult)
 }
 
 // Delete deletes entities by filter expression (NEW - from Locust)
@@ -113,11 +154,20 @@ func (c *Client) Delete(filter string, collectionName ...string) interface{} {
 		})
 	}
 
-	return toMap(&OperationResult{
+	opResult := &OperationResult{
 		Success:      true,
 		ResponseTime: float64(time.Since(start).Milliseconds()),
 		Result: map[string]interface{}{
 			"delete_count": result.DeleteCount,
 		},
+	}
+
+	// Emit metrics
+	c.emitOperationMetrics(opResult, MetricMetadata{
+		Operation:  "delete",
+		Collection: coll,
+		FilterUsed: filter != "",
 	})
+
+	return toMap(opResult)
 }

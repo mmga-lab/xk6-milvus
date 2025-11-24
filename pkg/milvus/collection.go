@@ -169,11 +169,19 @@ func (c *Client) CreateCollection(schemaInput interface{}) interface{} {
 		})
 	}
 
-	return toMap(&OperationResult{
+	opResult := &OperationResult{
 		Success:      true,
 		ResponseTime: float64(time.Since(start).Milliseconds()),
 		Result:       map[string]interface{}{"collection": schema.Name},
+	}
+
+	// Emit metrics
+	c.emitOperationMetrics(opResult, MetricMetadata{
+		Operation:  "create_collection",
+		Collection: schema.Name,
 	})
+
+	return toMap(opResult)
 }
 
 // DropCollection drops a collection
@@ -275,11 +283,19 @@ func (c *Client) LoadCollection(collectionName ...string) interface{} {
 		})
 	}
 
-	return toMap(&OperationResult{
+	opResult := &OperationResult{
 		Success:      true,
 		ResponseTime: float64(time.Since(start).Milliseconds()),
 		Result:       map[string]interface{}{"collection": name},
+	}
+
+	// Emit metrics
+	c.emitOperationMetrics(opResult, MetricMetadata{
+		Operation:  "load_collection",
+		Collection: name,
 	})
+
+	return toMap(opResult)
 }
 
 // ReleaseCollection releases a collection from memory
@@ -310,9 +326,17 @@ func (c *Client) ReleaseCollection(collectionName ...string) interface{} {
 		})
 	}
 
-	return toMap(&OperationResult{
+	opResult := &OperationResult{
 		Success:      true,
 		ResponseTime: float64(time.Since(start).Milliseconds()),
 		Result:       map[string]interface{}{"collection": name},
+	}
+
+	// Emit metrics
+	c.emitOperationMetrics(opResult, MetricMetadata{
+		Operation:  "release_collection",
+		Collection: name,
 	})
+
+	return toMap(opResult)
 }

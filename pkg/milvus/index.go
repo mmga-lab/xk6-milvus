@@ -125,7 +125,10 @@ func (c *Client) CreateIndex(fieldName string, indexParams map[string]interface{
 	}
 
 	// Wait for index creation to complete
+	indexBuildStart := time.Now()
 	err = task.Await(c.ctx)
+	indexBuildDuration := float64(time.Since(indexBuildStart).Milliseconds())
+
 	if err != nil {
 		return toMap(&OperationResult{
 			Success:      false,
@@ -134,9 +137,19 @@ func (c *Client) CreateIndex(fieldName string, indexParams map[string]interface{
 		})
 	}
 
-	return toMap(&OperationResult{
+	opResult := &OperationResult{
 		Success:      true,
 		ResponseTime: float64(time.Since(start).Milliseconds()),
 		Result:       map[string]interface{}{"field": fieldName, "index_type": indexType},
+	}
+
+	// Emit metrics
+	c.emitOperationMetrics(opResult, MetricMetadata{
+		Operation:     "create_index",
+		Collection:    coll,
+		IsIndexBuild:  true,
+		IndexDuration: indexBuildDuration,
 	})
+
+	return toMap(opResult)
 }

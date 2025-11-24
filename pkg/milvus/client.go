@@ -55,6 +55,7 @@ func (m *Milvus) createClient(address, collectionName string, token ...string) (
 		vu:                m.vu,
 		config:            clientConfig,
 		defaultCollection: collectionName,
+		metrics:           m.metrics,
 	}, nil
 }
 
