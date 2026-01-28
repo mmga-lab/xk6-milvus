@@ -22,6 +22,7 @@ xk6-milvus/
 │   ├── data.go              # Insert/upsert/delete operations
 │   ├── search.go            # Search and query operations
 │   ├── index.go             # Index management
+│   ├── snapshot.go          # Snapshot operations (backup/restore)
 │   ├── converters.go        # Type conversions (schema, vectors, etc.)
 │   ├── types.go             # Type definitions and structs
 │   ├── errors.go            # Error handling
@@ -168,6 +169,16 @@ All operations return a unified `OperationResult` structure:
 #### Index Operations
 
 - `createIndex(fieldName, indexParams, collectionName?)` - Create vector index
+
+#### Snapshot Operations
+
+- `createSnapshot(name, collectionName?, options?)` - Create a snapshot for backup
+- `dropSnapshot(name)` - Drop a snapshot
+- `listSnapshots(options?)` - List all snapshots
+- `describeSnapshot(name)` - Get snapshot details
+- `restoreSnapshot(name, collectionName, options?)` - Restore snapshot (async, returns jobId)
+- `getRestoreSnapshotState(jobId)` - Get restore job status
+- `listRestoreSnapshotJobs(options?)` - List all restore jobs
 
 ### SDK Implementation Details
 

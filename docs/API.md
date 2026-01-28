@@ -104,6 +104,18 @@ Quick reference for all available methods with links to detailed documentation.
 | ------------------------------------------------------------- | --------------------- | ------------------------------- |
 | `client.createIndex(fieldName, indexParams, collectionName?)` | Create index on field | [→ Details](#clientcreateindex) |
 
+#### Snapshot Operations
+
+| Method                                                           | Description                | Section                                   |
+| ---------------------------------------------------------------- | -------------------------- | ----------------------------------------- |
+| `client.createSnapshot(name, collectionName?, options?)`         | Create a snapshot          | [→ Details](#clientcreatesnapshot)        |
+| `client.dropSnapshot(name)`                                      | Drop a snapshot            | [→ Details](#clientdropsnapshot)          |
+| `client.listSnapshots(options?)`                                 | List all snapshots         | [→ Details](#clientlistsnapshots)         |
+| `client.describeSnapshot(name)`                                  | Get snapshot details       | [→ Details](#clientdescribesnapshot)      |
+| `client.restoreSnapshot(name, collectionName, options?)`         | Restore snapshot (async)   | [→ Details](#clientrestoresnapshot)       |
+| `client.getRestoreSnapshotState(jobId)`                          | Get restore job status     | [→ Details](#clientgetrestoresnapshotstate) |
+| `client.listRestoreSnapshotJobs(options?)`                       | List restore jobs          | [→ Details](#clientlistrestoresnapshotjobs) |
+
 #### Lifecycle
 
 | Method           | Description                 | Section |
@@ -726,6 +738,344 @@ const indexResult = client.createIndex(
 check(indexResult, {
   "index created": (r) => r.success === true,
 });
+```
+
+---
+
+## Snapshot Operations
+
+Snapshot operations allow you to create point-in-time backups of collections and restore them later. This is useful for stability testing, data migration, and disaster recovery.
+
+### client.createSnapshot()
+
+Creates a snapshot of a collection.
+
+#### Signature
+
+```javascript
+createSnapshot(
+  name: string,
+  collectionName?: string,
+  options?: { description?: string, dbName?: string }
+): OperationResult
+```
+
+#### Parameters
+
+| Parameter        | Type   | Required    | Description                                      |
+| ---------------- | ------ | ----------- | ------------------------------------------------ |
+| `name`           | string | Yes         | Unique snapshot name                             |
+| `collectionName` | string | Conditional | Collection name (optional for collection-bound)  |
+| `options`        | object | No          | Optional parameters                              |
+
+#### Options
+
+| Property      | Type   | Description               |
+| ------------- | ------ | ------------------------- |
+| `description` | string | Snapshot description      |
+| `dbName`      | string | Database name             |
+
+#### Returns
+
+`OperationResult` where `result` contains:
+
+- `name`: Created snapshot name
+
+#### Example
+
+```javascript
+// Standard client
+const result = client.createSnapshot('backup_v1', 'my_collection', {
+  description: 'Daily backup'
+});
+
+// Collection-bound client
+const boundClient = milvus.clientWithCollection('localhost:19530', 'products');
+const result = boundClient.createSnapshot('products_backup', null, {
+  description: 'Products backup before update'
+});
+
+check(result, {
+  'snapshot created': (r) => r.success === true,
+  'fast creation': (r) => r.response_time_ms < 5000
+});
+```
+
+---
+
+### client.dropSnapshot()
+
+Drops (deletes) a snapshot by name.
+
+#### Signature
+
+```javascript
+dropSnapshot(name: string): OperationResult
+```
+
+#### Parameters
+
+| Parameter | Type   | Required | Description     |
+| --------- | ------ | -------- | --------------- |
+| `name`    | string | Yes      | Snapshot name   |
+
+#### Example
+
+```javascript
+const result = client.dropSnapshot('backup_v1');
+check(result, {
+  'snapshot dropped': (r) => r.success === true
+});
+```
+
+---
+
+### client.listSnapshots()
+
+Lists all snapshots, optionally filtered by collection.
+
+#### Signature
+
+```javascript
+listSnapshots(options?: { collectionName?: string, dbName?: string }): OperationResult
+```
+
+#### Parameters
+
+| Parameter | Type   | Required | Description                    |
+| --------- | ------ | -------- | ------------------------------ |
+| `options` | object | No       | Filter options                 |
+
+#### Options
+
+| Property         | Type   | Description                    |
+| ---------------- | ------ | ------------------------------ |
+| `collectionName` | string | Filter by collection name      |
+| `dbName`         | string | Filter by database name        |
+
+#### Returns
+
+`OperationResult` where:
+
+- `result`: Array of snapshot names
+- `empty`: Boolean indicating if no snapshots found
+
+#### Example
+
+```javascript
+// List all snapshots
+const allResult = client.listSnapshots();
+
+// List snapshots for a specific collection
+const collResult = client.listSnapshots({
+  collectionName: 'products'
+});
+
+if (collResult.success && !collResult.empty) {
+  console.log(`Found ${collResult.result.length} snapshots`);
+  collResult.result.forEach(snap => console.log(`  - ${snap}`));
+}
+```
+
+---
+
+### client.describeSnapshot()
+
+Gets detailed information about a snapshot.
+
+#### Signature
+
+```javascript
+describeSnapshot(name: string): OperationResult
+```
+
+#### Parameters
+
+| Parameter | Type   | Required | Description     |
+| --------- | ------ | -------- | --------------- |
+| `name`    | string | Yes      | Snapshot name   |
+
+#### Returns
+
+`OperationResult` where `result` contains:
+
+| Property         | Type     | Description                   |
+| ---------------- | -------- | ----------------------------- |
+| `name`           | string   | Snapshot name                 |
+| `description`    | string   | Snapshot description          |
+| `collectionName` | string   | Source collection name        |
+| `partitionNames` | string[] | Partitions in the snapshot    |
+| `createTs`       | number   | Creation timestamp            |
+| `s3Location`     | string   | S3 location (if exported)     |
+
+#### Example
+
+```javascript
+const result = client.describeSnapshot('backup_v1');
+
+if (result.success) {
+  console.log(`Snapshot: ${result.result.name}`);
+  console.log(`Collection: ${result.result.collectionName}`);
+  console.log(`Created: ${new Date(result.result.createTs)}`);
+}
+```
+
+---
+
+### client.restoreSnapshot()
+
+Restores a snapshot to a target collection. This is an asynchronous operation that returns a job ID for tracking.
+
+#### Signature
+
+```javascript
+restoreSnapshot(
+  name: string,
+  collectionName: string,
+  options?: { dbName?: string }
+): OperationResult
+```
+
+#### Parameters
+
+| Parameter        | Type   | Required | Description                      |
+| ---------------- | ------ | -------- | -------------------------------- |
+| `name`           | string | Yes      | Snapshot name to restore         |
+| `collectionName` | string | Yes      | Target collection name           |
+| `options`        | object | No       | Optional parameters              |
+
+#### Returns
+
+`OperationResult` where `result` contains:
+
+- `jobId`: Job ID for tracking the restore progress
+
+#### Example
+
+```javascript
+const result = client.restoreSnapshot('backup_v1', 'products_restored');
+
+if (result.success) {
+  const jobId = result.result.jobId;
+  console.log(`Restore job started: ${jobId}`);
+
+  // Poll for completion
+  let state;
+  do {
+    sleep(1);
+    state = client.getRestoreSnapshotState(jobId);
+  } while (state.result.state === 'RestoreSnapshotExecuting');
+
+  if (state.result.state === 'RestoreSnapshotCompleted') {
+    console.log('Restore completed successfully!');
+  }
+}
+```
+
+---
+
+### client.getRestoreSnapshotState()
+
+Gets the current state of a restore snapshot job.
+
+#### Signature
+
+```javascript
+getRestoreSnapshotState(jobId: number): OperationResult
+```
+
+#### Parameters
+
+| Parameter | Type   | Required | Description            |
+| --------- | ------ | -------- | ---------------------- |
+| `jobId`   | number | Yes      | Restore job ID         |
+
+#### Returns
+
+`OperationResult` where `result` contains:
+
+| Property         | Type   | Description                                    |
+| ---------------- | ------ | ---------------------------------------------- |
+| `jobId`          | number | Job ID                                         |
+| `snapshotName`   | string | Source snapshot name                           |
+| `dbName`         | string | Database name                                  |
+| `collectionName` | string | Target collection name                         |
+| `state`          | string | Job state (see State Values)                   |
+| `progress`       | number | Progress percentage (0-100)                    |
+| `reason`         | string | Failure reason (if failed)                     |
+| `startTime`      | number | Start timestamp (milliseconds)                 |
+| `timeCost`       | number | Time elapsed (milliseconds)                    |
+
+#### State Values
+
+| State                        | Description                    |
+| ---------------------------- | ------------------------------ |
+| `RestoreSnapshotNone`        | No state                       |
+| `RestoreSnapshotPending`     | Waiting to start               |
+| `RestoreSnapshotExecuting`   | Currently executing            |
+| `RestoreSnapshotCompleted`   | Completed successfully         |
+| `RestoreSnapshotFailed`      | Failed (check `reason`)        |
+
+#### Example
+
+```javascript
+const stateResult = client.getRestoreSnapshotState(jobId);
+
+if (stateResult.success) {
+  const { state, progress, reason } = stateResult.result;
+
+  switch (state) {
+    case 'RestoreSnapshotCompleted':
+      console.log('Restore completed!');
+      break;
+    case 'RestoreSnapshotExecuting':
+      console.log(`Restoring: ${progress}%`);
+      break;
+    case 'RestoreSnapshotFailed':
+      console.error(`Restore failed: ${reason}`);
+      break;
+  }
+}
+```
+
+---
+
+### client.listRestoreSnapshotJobs()
+
+Lists all restore snapshot jobs, optionally filtered by collection.
+
+#### Signature
+
+```javascript
+listRestoreSnapshotJobs(options?: { collectionName?: string }): OperationResult
+```
+
+#### Parameters
+
+| Parameter | Type   | Required | Description       |
+| --------- | ------ | -------- | ----------------- |
+| `options` | object | No       | Filter options    |
+
+#### Returns
+
+`OperationResult` where:
+
+- `result`: Array of job information objects
+- `empty`: Boolean indicating if no jobs found
+
+Each job object contains the same fields as `getRestoreSnapshotState()` result.
+
+#### Example
+
+```javascript
+const result = client.listRestoreSnapshotJobs();
+
+if (result.success && !result.empty) {
+  result.result.forEach(job => {
+    console.log(`Job ${job.jobId}: ${job.snapshotName} -> ${job.collectionName}`);
+    console.log(`  State: ${job.state}, Progress: ${job.progress}%`);
+  });
+}
 ```
 
 ---
