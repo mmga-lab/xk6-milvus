@@ -1,5 +1,5 @@
 # Multi-stage build for xk6-milvus
-FROM golang:1.24-alpine AS builder
+FROM golang:1.25-alpine AS builder
 
 # Install build dependencies
 RUN apk add --no-cache git
@@ -7,7 +7,7 @@ RUN apk add --no-cache git
 # Set working directory
 WORKDIR /build
 
-# Install xk6
+# Install xk6 latest
 RUN go install go.k6.io/xk6/cmd/xk6@latest
 
 # Copy go module files

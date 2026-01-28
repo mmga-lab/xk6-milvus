@@ -1,6 +1,6 @@
 module github.com/mmga-lab/xk6-milvus
 
-go 1.24.11
+go 1.25.0
 
 // Use milvus master branch with snapshot support
 // To update all milvus deps:
