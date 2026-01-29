@@ -139,7 +139,23 @@ jobs:
       - name: Download dependencies
         run: go mod download
 
+      - name: Get latest Milvus master image
+        id: milvus-image
+        run: |
+          # Get the latest master image tag from Docker Hub
+          LATEST_TAG=$(curl -s "https://hub.docker.com/v2/repositories/milvusdb/milvus/tags?page_size=100&name=master-" | \
+            jq -r '.results[] | select(.name | test("master-[0-9]+-[a-f0-9]+-amd64$")) | .name' | \
+            sort -r | head -1)
+          if [ -z "$LATEST_TAG" ]; then
+            echo "Failed to get latest master image, using default"
+            LATEST_TAG="v2.6.5"
+          fi
+          echo "tag=$LATEST_TAG" >> $GITHUB_OUTPUT
+          echo "Using Milvus image: milvusdb/milvus:$LATEST_TAG"
+
       - name: Deploy Milvus
+        env:
+          MILVUS_IMAGE: milvusdb/milvus:${{ steps.milvus-image.outputs.tag }}
         run: docker compose -f deployment/docker-compose.yml up -d --wait
 
       - name: Run integration tests
@@ -180,7 +196,23 @@ jobs:
       - name: Verify k6
         run: ./k6 version
 
+      - name: Get latest Milvus master image
+        id: milvus-image
+        run: |
+          # Get the latest master image tag from Docker Hub
+          LATEST_TAG=$(curl -s "https://hub.docker.com/v2/repositories/milvusdb/milvus/tags?page_size=100&name=master-" | \
+            jq -r '.results[] | select(.name | test("master-[0-9]+-[a-f0-9]+-amd64$")) | .name' | \
+            sort -r | head -1)
+          if [ -z "$LATEST_TAG" ]; then
+            echo "Failed to get latest master image, using default"
+            LATEST_TAG="v2.6.5"
+          fi
+          echo "tag=$LATEST_TAG" >> $GITHUB_OUTPUT
+          echo "Using Milvus image: milvusdb/milvus:$LATEST_TAG"
+
       - name: Deploy Milvus
+        env:
+          MILVUS_IMAGE: milvusdb/milvus:${{ steps.milvus-image.outputs.tag }}
         run: docker compose -f deployment/docker-compose.yml up -d --wait
 
       - name: Run basic operations test
