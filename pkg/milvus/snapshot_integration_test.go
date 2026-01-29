@@ -6,6 +6,7 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"strings"
 	"testing"
 	"time"
 
@@ -31,6 +32,18 @@ func createTestClient(t *testing.T) *milvusclient.Client {
 	return client
 }
 
+// skipIfSnapshotNotSupported checks if the Milvus server supports snapshot operations
+// and skips the test if not supported (older Milvus versions don't have this feature)
+func skipIfSnapshotNotSupported(t *testing.T, client *Client) {
+	result := client.ListSnapshots(nil).(map[string]interface{})
+	if !result["success"].(bool) {
+		errMsg := result["error"].(string)
+		if strings.Contains(errMsg, "Unimplemented") || strings.Contains(errMsg, "unknown method") {
+			t.Skip("Skipping test: Milvus server does not support snapshot operations")
+		}
+	}
+}
+
 func TestSnapshotOperations(t *testing.T) {
 	if testing.Short() {
 		t.Skip("Skipping integration test in short mode")
@@ -47,6 +60,9 @@ func TestSnapshotOperations(t *testing.T) {
 		defaultCollection: "",
 		config:            DefaultClientConfig(),
 	}
+
+	// Check if snapshot operations are supported
+	skipIfSnapshotNotSupported(t, client)
 
 	collectionName := fmt.Sprintf("test_snapshot_%d", time.Now().UnixNano())
 	snapshotName := fmt.Sprintf("snap_%d", time.Now().UnixNano())
@@ -237,6 +253,9 @@ func TestSnapshotErrorHandling(t *testing.T) {
 		config:            DefaultClientConfig(),
 	}
 
+	// Check if snapshot operations are supported
+	skipIfSnapshotNotSupported(t, client)
+
 	t.Run("CreateSnapshot_NoCollection", func(t *testing.T) {
 		result := client.CreateSnapshot("test_snap", nil).(map[string]interface{})
 		assert.False(t, result["success"].(bool))
@@ -270,6 +289,15 @@ func TestSnapshotWithBoundCollection(t *testing.T) {
 	ctx := context.Background()
 	sdkClient := createTestClient(t)
 	defer sdkClient.Close(ctx)
+
+	// First check if snapshot is supported using a temporary client
+	tempClient := &Client{
+		client:            sdkClient,
+		ctx:               ctx,
+		defaultCollection: "",
+		config:            DefaultClientConfig(),
+	}
+	skipIfSnapshotNotSupported(t, tempClient)
 
 	collectionName := fmt.Sprintf("test_bound_snapshot_%d", time.Now().UnixNano())
 	snapshotName := fmt.Sprintf("bound_snap_%d", time.Now().UnixNano())
