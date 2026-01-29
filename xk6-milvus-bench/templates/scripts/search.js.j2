@@ -207,13 +207,13 @@ export default function(data) {
         const queryVector = generateVector(CONFIG.vectorDim);
         const result = client.search(
             [queryVector],
-            {{ variant.topk | default(scenario.search.topk) }},
+            {{ variant.topk if variant.topk else scenario.search.topk }},
             {
                 vectorField: 'embedding',
                 metricType: CONFIG.index.metric,
                 outputFields: CONFIG.outputFields,
 {% if variant.filter %}
-                expr: '{{ variant.filter }}',
+                expr: {{ variant.filter | tojson }},
 {% endif %}
                 params: {
                     nprobe: CONFIG.nprobe,

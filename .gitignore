@@ -54,3 +54,6 @@ __pycache__/
 .venv/
 venv/
 *.egg
+
+# xk6-milvus-bench generated files
+xk6-milvus-bench/output/
