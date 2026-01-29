@@ -40,6 +40,7 @@ services:
     container_name: milvus-standalone
     image: ${MILVUS_IMAGE:-milvusdb/milvus:v2.6.5}
     command: ["milvus", "run", "standalone"]
+    user: root
     security_opt:
     - seccomp:unconfined
     environment:
