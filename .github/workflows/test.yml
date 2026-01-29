@@ -14,7 +14,7 @@ jobs:
       GONOSUMDB: github.com/milvus-io
     strategy:
       matrix:
-        go-version: ['1.24', '1.25']
+        go-version: ['1.25']
 
     steps:
       - name: Checkout code
@@ -68,7 +68,7 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@v6
         with:
-          go-version: '1.24'
+          go-version: '1.25'
 
       - name: Download dependencies
         run: go mod download
@@ -96,7 +96,7 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@v6
         with:
-          go-version: '1.24'
+          go-version: '1.25'
 
       - name: Download dependencies
         run: go mod download
@@ -134,7 +134,7 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@v6
         with:
-          go-version: '1.24'
+          go-version: '1.25'
 
       - name: Download dependencies
         run: go mod download
@@ -167,7 +167,7 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@v6
         with:
-          go-version: '1.24'
+          go-version: '1.25'
 
       - name: Download k6 binary
         uses: actions/download-artifact@v5
