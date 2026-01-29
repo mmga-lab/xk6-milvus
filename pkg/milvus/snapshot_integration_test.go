@@ -136,8 +136,25 @@ func TestSnapshotOperations(t *testing.T) {
 		assert.True(t, result["success"].(bool), "Failed to list snapshots: %v", result["error"])
 		assert.Greater(t, result["response_time_ms"].(float64), float64(0))
 
-		snapshots := result["result"].([]string)
-		assert.Contains(t, snapshots, snapshotName)
+		// Result can be []string or []interface{} depending on conversion
+		var found bool
+		switch snapshots := result["result"].(type) {
+		case []string:
+			for _, s := range snapshots {
+				if s == snapshotName {
+					found = true
+					break
+				}
+			}
+		case []interface{}:
+			for _, s := range snapshots {
+				if str, ok := s.(string); ok && str == snapshotName {
+					found = true
+					break
+				}
+			}
+		}
+		assert.True(t, found, "Snapshot %s not found in list", snapshotName)
 	})
 
 	// Test DescribeSnapshot
