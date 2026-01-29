@@ -13,6 +13,7 @@ from typing import Any
 from rich.console import Console
 
 from .config import Config
+from .k6 import find_k6_binary
 
 
 @dataclass
@@ -62,24 +63,13 @@ class BaseRunner(ABC):
 class LocalRunner(BaseRunner):
     """本地运行器"""
 
-    def __init__(self, k6_binary: str = "k6"):
+    def __init__(self, k6_binary: str | None = None):
         super().__init__()
         self.k6_binary = k6_binary
 
-    def find_k6_binary(self) -> str:
-        """查找 k6 二进制文件"""
-        # 优先使用当前目录的 k6
-        local_k6 = Path("./k6")
-        if local_k6.exists() and local_k6.is_file():
-            return str(local_k6.absolute())
-
-        # 尝试 xk6-milvus 项目根目录
-        project_k6 = Path(__file__).parent.parent.parent.parent / "k6"
-        if project_k6.exists() and project_k6.is_file():
-            return str(project_k6.absolute())
-
-        # 使用系统 k6
-        return self.k6_binary
+    def get_k6_path(self) -> str:
+        """获取 k6 二进制路径"""
+        return find_k6_binary(self.k6_binary)
 
     def run(
         self,
@@ -88,7 +78,7 @@ class LocalRunner(BaseRunner):
         matrix_params: dict[str, Any] | None = None,
     ) -> TestResult:
         """本地运行 k6 测试"""
-        k6_path = self.find_k6_binary()
+        k6_path = self.get_k6_path()
         start_time = datetime.now()
 
         # 构建命令

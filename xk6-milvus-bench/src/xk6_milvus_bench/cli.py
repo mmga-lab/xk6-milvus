@@ -96,9 +96,9 @@ def run(
         typer.Option("-o", "--output", help="输出目录"),
     ] = None,
     k6_binary: Annotated[
-        str,
+        str | None,
         typer.Option("--k6", help="k6 二进制文件路径"),
-    ] = "k6",
+    ] = None,
     dry_run: Annotated[
         bool,
         typer.Option("--dry-run", help="仅生成脚本，不运行"),
@@ -566,6 +566,98 @@ def dataset_info(
 
 # 注册 dataset 子命令组
 app.add_typer(dataset_app, name="dataset")
+
+
+# ============================================================================
+# k6 子命令
+# ============================================================================
+
+k6_app = typer.Typer(help="管理 k6 二进制")
+
+
+@k6_app.command("info")
+def k6_info():
+    """显示 k6 二进制信息"""
+    from .k6 import find_k6_binary, get_bundled_k6_path, verify_k6_binary
+
+    # 检查打包的 k6
+    bundled = get_bundled_k6_path()
+    if bundled:
+        console.print(f"[green]Bundled k6:[/green] {bundled}")
+    else:
+        console.print("[yellow]Bundled k6:[/yellow] Not found")
+
+    # 查找可用的 k6
+    try:
+        k6_path = find_k6_binary()
+        console.print(f"[green]Active k6:[/green] {k6_path}")
+
+        # 验证
+        info = verify_k6_binary(k6_path)
+        if info["valid"]:
+            console.print(f"[dim]Version:[/dim] {info['version']}")
+            if info["has_milvus_extension"]:
+                console.print("[green]xk6-milvus extension: ✓[/green]")
+            else:
+                console.print("[yellow]xk6-milvus extension: Not detected[/yellow]")
+        else:
+            console.print(f"[red]Validation failed:[/red] {info.get('error', 'Unknown error')}")
+    except FileNotFoundError as e:
+        console.print(f"[red]No k6 found:[/red] {e}")
+
+
+@k6_app.command("build")
+def k6_build(
+    output: Annotated[
+        Path | None,
+        typer.Option("-o", "--output", help="输出目录"),
+    ] = None,
+    install: Annotated[
+        bool,
+        typer.Option("--install", "-i", help="安装到包目录"),
+    ] = False,
+):
+    """构建 k6 二进制（带 xk6-milvus 扩展）"""
+    from .k6 import BIN_DIR, build_k6, get_k6_binary_name
+
+    if output is None:
+        output = Path.cwd()
+
+    try:
+        k6_path = build_k6(output)
+        console.print(f"[green]k6 built successfully:[/green] {k6_path}")
+
+        if install:
+            # 安装到包目录
+            BIN_DIR.mkdir(parents=True, exist_ok=True)
+            binary_name = get_k6_binary_name()
+            dest = BIN_DIR / binary_name
+
+            import shutil
+            shutil.copy2(k6_path, dest)
+            dest.chmod(0o755)
+            console.print(f"[green]Installed to:[/green] {dest}")
+
+    except Exception as e:
+        console.print(f"[red]Build failed:[/red] {e}")
+        raise typer.Exit(1) from None
+
+
+@k6_app.command("path")
+def k6_path():
+    """显示 k6 二进制路径"""
+    from .k6 import find_k6_binary
+
+    try:
+        path = find_k6_binary()
+        console.print(path)
+    except FileNotFoundError as e:
+        console.print(f"[red]Error:[/red] {e}", err=True)
+        raise typer.Exit(1) from None
+
+
+# 注册 k6 子命令组
+app.add_typer(k6_app, name="k6")
 
 
 if __name__ == "__main__":
