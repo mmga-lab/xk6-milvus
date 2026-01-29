@@ -1,0 +1,309 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ title }}</title>
+    <style>
+        :root {
+            --primary-color: #4f46e5;
+            --success-color: #10b981;
+            --error-color: #ef4444;
+            --warning-color: #f59e0b;
+            --bg-color: #f9fafb;
+            --card-bg: #ffffff;
+            --text-primary: #111827;
+            --text-secondary: #6b7280;
+            --border-color: #e5e7eb;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-primary);
+            line-height: 1.6;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 2rem;
+        }
+
+        header {
+            background: linear-gradient(135deg, var(--primary-color), #7c3aed);
+            color: white;
+            padding: 2rem;
+            border-radius: 12px;
+            margin-bottom: 2rem;
+        }
+
+        header h1 {
+            font-size: 2rem;
+            margin-bottom: 0.5rem;
+        }
+
+        header p {
+            opacity: 0.9;
+            font-size: 0.9rem;
+        }
+
+        .summary-cards {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1rem;
+            margin-bottom: 2rem;
+        }
+
+        .card {
+            background: var(--card-bg);
+            border-radius: 12px;
+            padding: 1.5rem;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+            border: 1px solid var(--border-color);
+        }
+
+        .card h3 {
+            font-size: 0.875rem;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            margin-bottom: 0.5rem;
+        }
+
+        .card .value {
+            font-size: 2rem;
+            font-weight: 700;
+        }
+
+        .card.success .value { color: var(--success-color); }
+        .card.error .value { color: var(--error-color); }
+        .card.warning .value { color: var(--warning-color); }
+        .card.primary .value { color: var(--primary-color); }
+
+        .results-table {
+            background: var(--card-bg);
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+            border: 1px solid var(--border-color);
+            margin-bottom: 2rem;
+        }
+
+        .results-table h2 {
+            padding: 1rem 1.5rem;
+            border-bottom: 1px solid var(--border-color);
+            font-size: 1.125rem;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        th, td {
+            padding: 1rem 1.5rem;
+            text-align: left;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        th {
+            background: var(--bg-color);
+            font-weight: 600;
+            font-size: 0.875rem;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        tr:last-child td {
+            border-bottom: none;
+        }
+
+        tr:hover {
+            background: var(--bg-color);
+        }
+
+        .status-badge {
+            display: inline-flex;
+            align-items: center;
+            padding: 0.25rem 0.75rem;
+            border-radius: 9999px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+
+        .status-badge.success {
+            background: #d1fae5;
+            color: #065f46;
+        }
+
+        .status-badge.failed, .status-badge.error {
+            background: #fee2e2;
+            color: #991b1b;
+        }
+
+        .threshold-icon {
+            font-size: 1.25rem;
+        }
+
+        .threshold-icon.passed { color: var(--success-color); }
+        .threshold-icon.failed { color: var(--error-color); }
+
+        .metrics-section {
+            background: var(--card-bg);
+            border-radius: 12px;
+            padding: 1.5rem;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+            border: 1px solid var(--border-color);
+        }
+
+        .metrics-section h2 {
+            margin-bottom: 1rem;
+            font-size: 1.125rem;
+        }
+
+        .metrics-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 1rem;
+        }
+
+        .metric-item {
+            padding: 1rem;
+            background: var(--bg-color);
+            border-radius: 8px;
+        }
+
+        .metric-item .label {
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+            margin-bottom: 0.25rem;
+        }
+
+        .metric-item .value {
+            font-size: 1.25rem;
+            font-weight: 600;
+        }
+
+        footer {
+            text-align: center;
+            padding: 2rem;
+            color: var(--text-secondary);
+            font-size: 0.875rem;
+        }
+
+        @media (max-width: 768px) {
+            .container {
+                padding: 1rem;
+            }
+
+            header {
+                padding: 1.5rem;
+            }
+
+            header h1 {
+                font-size: 1.5rem;
+            }
+
+            th, td {
+                padding: 0.75rem 1rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>{{ title }}</h1>
+            <p>Generated at: {{ generated_at }}</p>
+        </header>
+
+        <div class="summary-cards">
+            <div class="card primary">
+                <h3>Total Tests</h3>
+                <div class="value">{{ summary.total }}</div>
+            </div>
+            <div class="card success">
+                <h3>Successful</h3>
+                <div class="value">{{ summary.success }}</div>
+            </div>
+            <div class="card error">
+                <h3>Failed</h3>
+                <div class="value">{{ summary.failed }}</div>
+            </div>
+            <div class="card {% if summary.thresholds_passed == summary.total %}success{% else %}warning{% endif %}">
+                <h3>Thresholds Passed</h3>
+                <div class="value">{{ summary.thresholds_passed }}/{{ summary.total }}</div>
+            </div>
+        </div>
+
+        <div class="results-table">
+            <h2>Test Results</h2>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Scenario</th>
+                        <th>Status</th>
+                        <th>Duration</th>
+                        <th>Thresholds</th>
+                        <th>Parameters</th>
+                    </tr>
+                </thead>
+                <tbody>
+{% for result in results %}
+                    <tr>
+                        <td>{{ result.scenario }}</td>
+                        <td>
+                            <span class="status-badge {{ result.status }}">{{ result.status }}</span>
+                        </td>
+                        <td>{{ "%.2f"|format(result.duration_seconds) }}s</td>
+                        <td>
+                            <span class="threshold-icon {% if result.thresholds_passed %}passed{% else %}failed{% endif %}">
+                                {% if result.thresholds_passed %}✅{% else %}❌{% endif %}
+                            </span>
+                        </td>
+                        <td>
+{% if result.matrix_params %}
+{% for key, value in result.matrix_params.items() %}
+                            {{ key }}={{ value }}{% if not loop.last %}, {% endif %}
+{% endfor %}
+{% else %}
+                            -
+{% endif %}
+                        </td>
+                    </tr>
+{% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+{% if results and results[0].metrics %}
+        <div class="metrics-section">
+            <h2>Sample Metrics (First Result)</h2>
+            <div class="metrics-grid">
+{% for key, value in results[0].metrics.items() %}
+{% if value is number %}
+                <div class="metric-item">
+                    <div class="label">{{ key }}</div>
+                    <div class="value">{{ "%.2f"|format(value) }}</div>
+                </div>
+{% endif %}
+{% endfor %}
+            </div>
+        </div>
+{% endif %}
+
+        <footer>
+            <p>Generated by xk6-milvus-bench | Milvus Performance Testing Framework</p>
+        </footer>
+    </div>
+</body>
+</html>

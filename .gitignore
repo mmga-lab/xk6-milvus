@@ -44,3 +44,13 @@ integration-coverage.html
 # Generated test data
 examples/data/*.json
 examples/recall-data/*.json
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+.eggs/
+.venv/
+venv/
+*.egg

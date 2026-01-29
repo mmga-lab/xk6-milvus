@@ -1,0 +1,44 @@
+# 向量搜索性能测试场景配置
+
+# 继承默认配置
+extends: default
+
+# 场景特定配置
+scenario:
+  name: search-performance
+  description: 向量搜索性能测试 - 测试各种搜索参数下的性能
+
+  type: search
+
+  # 数据准备
+  setup:
+    data_size: 10000
+    batch_size: 1000
+
+  # 搜索参数
+  search:
+    topk: 10
+    output_fields:
+      - category
+      - price
+    nprobe: 16
+    ef: 64
+
+  # 测试变体
+  variants:
+    - name: basic
+      filter: null
+
+    - name: filtered_price
+      filter: "price > 50"
+
+    - name: filtered_category
+      filter: "category == 'electronics'"
+
+    - name: high_topk
+      topk: 100
+
+# 执行配置
+execution:
+  vus: 20
+  duration: 10m

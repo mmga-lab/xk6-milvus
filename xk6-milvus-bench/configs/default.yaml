@@ -1,0 +1,79 @@
+# xk6-milvus-bench 默认配置
+# 所有场景配置都会继承此文件的设置
+
+# Milvus 连接配置
+milvus:
+  host: ${MILVUS_HOST:-localhost:19530}
+  token: ${MILVUS_TOKEN:-}
+  database: default
+
+# 集合配置
+collection:
+  name_prefix: perf_test_
+  vector_dim: 128
+  index:
+    type: HNSW
+    metric: L2
+    params:
+      M: 16
+      efConstruction: 200
+
+# k6 执行配置
+execution:
+  vus: 10
+  duration: 5m
+  # 或使用 stages 进行分阶段测试
+  # stages:
+  #   - duration: 1m
+  #     target: 10
+  #   - duration: 3m
+  #     target: 10
+  #   - duration: 1m
+  #     target: 0
+
+# 性能阈值
+thresholds:
+  search_p95_ms: 100
+  search_p99_ms: 200
+  insert_p95_ms: 500
+  min_recall: 0.95
+  max_error_rate: 0.01
+
+# K8s 配置（用于 k8s 模式）
+kubernetes:
+  namespace: k6-tests
+  image: harbor.milvus.io/milvus/k6-milvus:latest
+  parallelism: 1
+  resources:
+    requests:
+      cpu: 500m
+      memory: 512Mi
+    limits:
+      cpu: "2"
+      memory: 2Gi
+
+# Prometheus 配置
+prometheus:
+  enabled: true
+  remote_write_url: http://prometheus:9090/api/v1/write
+
+# 场景配置
+scenario:
+  name: default
+  description: 默认测试场景
+  type: search
+  setup:
+    data_size: 10000
+    batch_size: 1000
+  search:
+    topk: 10
+    output_fields:
+      - category
+      - price
+    nprobe: 16
+    ef: 64
+  variants:
+    - name: basic
+      filter: null
+    - name: filtered
+      filter: "price > 50"

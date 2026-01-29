@@ -1,0 +1,73 @@
+# xk6-milvus-bench 稳定性测试配置
+# 用于长时间运行测试，检测内存泄漏和性能退化
+
+# 继承默认配置
+extends: default
+
+# Milvus 连接配置
+milvus:
+  host: ${MILVUS_HOST:-localhost:19530}
+
+# 集合配置
+collection:
+  name_prefix: soak_test_
+  vector_dim: 256
+  index:
+    type: HNSW
+    metric: L2
+    params:
+      M: 16
+      efConstruction: 200
+
+# 长时间低压执行配置
+execution:
+  vus: 10  # 适中的虚拟用户数
+  duration: 2h  # 2 小时稳定性测试
+  # 或使用分阶段
+  # stages:
+  #   - duration: 5m
+  #     target: 10    # 预热
+  #   - duration: 110m
+  #     target: 10    # 持续运行
+  #   - duration: 5m
+  #     target: 0     # 冷却
+
+# 稳定性测试阈值（关注一致性）
+thresholds:
+  search_p95_ms: 100
+  search_p99_ms: 150
+  insert_p95_ms: 300
+  min_recall: 0.95
+  max_error_rate: 0.001  # 非常严格的错误率
+
+# K8s 配置
+kubernetes:
+  namespace: k6-soak-tests
+  image: harbor.milvus.io/milvus/k6-milvus:latest
+  parallelism: 2
+  resources:
+    requests:
+      cpu: 500m
+      memory: 512Mi
+    limits:
+      cpu: "2"
+      memory: 2Gi
+
+# 场景配置
+scenario:
+  name: soak-test
+  description: 稳定性测试 - 长时间运行检测性能退化
+  type: soak
+  setup:
+    data_size: 50000
+    batch_size: 2000
+  search:
+    topk: 10
+    output_fields:
+      - category
+      - price
+    nprobe: 16
+    ef: 64
+  variants:
+    - name: basic
+      filter: null

@@ -1,0 +1,92 @@
+[project]
+name = "xk6-milvus-bench"
+version = "0.1.0"
+description = "Milvus 性能/稳定性测试框架 - 基于 xk6-milvus 的 Python CLI 工具"
+readme = "README.md"
+requires-python = ">=3.10"
+license = {text = "MIT"}
+authors = [
+    {name = "Jeremy Zhu", email = "jeremy.zhu@zilliz.com"},
+]
+keywords = ["milvus", "k6", "performance", "testing", "benchmark", "vector-database"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Software Development :: Testing",
+    "Topic :: Database",
+]
+
+dependencies = [
+    "typer>=0.12.0",
+    "rich>=13.0.0",
+    "jinja2>=3.1.0",
+    "pyyaml>=6.0",
+    "pydantic>=2.0.0",
+    "pydantic-settings>=2.0.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0.0",
+    "pytest-cov>=4.0.0",
+    "ruff>=0.4.0",
+]
+# 数据集支持（下载和转换标准 benchmark 数据集）
+datasets = [
+    "h5py>=3.0.0",
+    "pyarrow>=14.0.0",
+    "numpy>=1.24.0",
+]
+# 完整安装（包含所有可选依赖）
+all = [
+    "xk6-milvus-bench[dev,datasets]",
+]
+
+[project.scripts]
+xk6-milvus-bench = "xk6_milvus_bench.cli:app"
+
+[project.urls]
+Homepage = "https://github.com/mmga-lab/xk6-milvus"
+Documentation = "https://github.com/mmga-lab/xk6-milvus/tree/main/xk6-milvus-bench"
+Repository = "https://github.com/mmga-lab/xk6-milvus"
+Issues = "https://github.com/mmga-lab/xk6-milvus/issues"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/xk6_milvus_bench"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py310"
+
+[tool.ruff.lint]
+select = [
+    "E",   # pycodestyle errors
+    "W",   # pycodestyle warnings
+    "F",   # Pyflakes
+    "I",   # isort
+    "B",   # flake8-bugbear
+    "C4",  # flake8-comprehensions
+    "UP",  # pyupgrade
+]
+ignore = [
+    "E501",  # line too long (handled by formatter)
+    "B008",  # do not perform function calls in argument defaults
+]
+
+[tool.ruff.lint.isort]
+known-first-party = ["xk6_milvus_bench"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+python_functions = ["test_*"]
+addopts = "-v --tb=short"

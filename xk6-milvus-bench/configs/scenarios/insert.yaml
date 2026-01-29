@@ -1,0 +1,48 @@
+# 数据插入性能测试场景配置
+
+# 继承默认配置
+extends: default
+
+# 场景特定配置
+scenario:
+  name: insert-performance
+  description: 数据插入性能测试 - 测试不同批次大小下的插入性能
+
+  type: insert
+
+  # 数据准备（仅创建空集合）
+  setup:
+    data_size: 0  # 不预先插入数据
+    batch_size: 1000
+
+  # 搜索参数（插入测试不使用）
+  search:
+    topk: 10
+    output_fields:
+      - category
+      - price
+    nprobe: 16
+    ef: 64
+
+  variants:
+    - name: small_batch
+      filter: null
+
+    - name: medium_batch
+      filter: null
+
+    - name: large_batch
+      filter: null
+
+# 执行配置
+execution:
+  vus: 10
+  duration: 5m
+
+# 插入测试阈值
+thresholds:
+  search_p95_ms: 100
+  search_p99_ms: 200
+  insert_p95_ms: 500
+  min_recall: 0.95
+  max_error_rate: 0.01

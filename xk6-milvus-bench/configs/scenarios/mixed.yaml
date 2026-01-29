@@ -1,0 +1,53 @@
+# 混合负载测试场景配置
+
+# 继承默认配置
+extends: default
+
+# 场景特定配置
+scenario:
+  name: mixed-workload
+  description: 混合负载测试 - 模拟真实场景的读写混合负载
+
+  type: mixed
+
+  # 数据准备
+  setup:
+    data_size: 50000
+    batch_size: 2000
+
+  # 搜索参数
+  search:
+    topk: 10
+    output_fields:
+      - category
+      - price
+    nprobe: 16
+    ef: 64
+
+  # 读写比例 (80% 读, 20% 写)
+  # 在 mixed.js.j2 模板中硬编码
+  variants:
+    - name: search
+      filter: null
+
+    - name: query
+      filter: null
+
+    - name: insert
+      filter: null
+
+    - name: delete
+      filter: null
+
+# 执行配置
+execution:
+  vus: 20
+  duration: 15m
+
+# 混合负载阈值
+thresholds:
+  search_p95_ms: 100
+  search_p99_ms: 200
+  insert_p95_ms: 500
+  min_recall: 0.95
+  max_error_rate: 0.02  # 略微放宽
