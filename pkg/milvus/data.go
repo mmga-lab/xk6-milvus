@@ -90,6 +90,50 @@ func (c *Client) Upsert(data map[string]interface{}, collectionName ...string) i
 	})
 }
 
+// Flush flushes a collection to persist inserted data and seal growing segments
+// This is a synchronous call that waits for flush to complete
+func (c *Client) Flush(collectionName ...string) interface{} {
+	start := time.Now()
+
+	coll := c.getCollectionName(collectionName...)
+	if coll == "" {
+		return toMap(&OperationResult{
+			Success:      false,
+			ResponseTime: float64(time.Since(start).Milliseconds()),
+			Error:        ErrCollectionNameRequired.Error(),
+		})
+	}
+
+	option := milvusclient.NewFlushOption(coll)
+	task, err := c.client.Flush(c.ctx, option)
+	if err != nil {
+		return toMap(&OperationResult{
+			Success:      false,
+			ResponseTime: float64(time.Since(start).Milliseconds()),
+			Error:        fmt.Sprintf("failed to flush: %v", err),
+		})
+	}
+
+	// Wait for flush to complete
+	err = task.Await(c.ctx)
+	if err != nil {
+		return toMap(&OperationResult{
+			Success:      false,
+			ResponseTime: float64(time.Since(start).Milliseconds()),
+			Error:        fmt.Sprintf("failed to wait for flush: %v", err),
+		})
+	}
+
+	segIDs, _, _, _ := task.GetFlushStats()
+	return toMap(&OperationResult{
+		Success:      true,
+		ResponseTime: float64(time.Since(start).Milliseconds()),
+		Result: map[string]interface{}{
+			"segment_ids": segIDs,
+		},
+	})
+}
+
 // Delete deletes entities by filter expression (NEW - from Locust)
 func (c *Client) Delete(filter string, collectionName ...string) interface{} {
 	start := time.Now()
