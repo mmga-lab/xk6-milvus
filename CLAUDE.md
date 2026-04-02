@@ -53,10 +53,20 @@ xk6-milvus/
 ### Key Principles
 
 - Each VU gets its own Milvus instance for proper isolation
-- VU context is used for all operations (not background context)
+- Operations dynamically call `vu.Context()` to get the current iteration's context
+- `getClient()` / `getRestClient()` cache connections at VU level for reuse across iterations
 - Exports both default and named exports following ES module conventions
-- Supports collection-bound clients for cleaner code
 - Clean separation of concerns in pkg/milvus/
+
+### Connection Lifecycle
+
+| Method | Connection per | Use case |
+|--------|---------------|----------|
+| `getClient()` / `getRestClient()` | VU (cached) | **Load testing** — one connection per VU, reused across iterations |
+| `client()` / `restClient()` | Call (new each time) | Setup/teardown or single-iteration scripts |
+
+For load testing, always use `getClient()` / `getRestClient()` in `default function()`.
+Never call `close()` on cached clients.
 
 ## Common Commands
 

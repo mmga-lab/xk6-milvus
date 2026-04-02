@@ -530,35 +530,57 @@ declare module 'k6/x/milvus' {
     };
   }
 
-  // REST Client
+  // VU-Level Cached Clients (Recommended for load testing)
 
   /**
-   * Creates a Milvus REST client using RESTful v2 API.
-   * Uses HTTP instead of gRPC - same OperationResult interface.
-   *
-   * @param address - Milvus server address (e.g., "localhost:19530")
-   * @param token - Optional authentication token (format: "username:password")
-   * @returns RestClient object for executing Milvus operations via REST API
-   * @example
-   * ```javascript
-   * const client = milvus.restClient('localhost:19530');
-   * const authClient = milvus.restClient('localhost:19530', 'root:Milvus');
-   * ```
-   */
-  export function restClient(address: string, token?: string): RestClient;
-
-  /**
-   * Creates a collection-bound Milvus REST client.
+   * Returns a VU-level cached gRPC client. The connection is created on first call
+   * and reused across iterations within the same VU. Do NOT call close() on cached clients.
    *
    * @param address - Milvus server address
    * @param collectionName - Default collection name for all operations
    * @param token - Optional authentication token
-   * @returns Collection-bound RestClient object
+   * @returns Cached Client object (one gRPC connection per VU)
    * @example
    * ```javascript
-   * const client = milvus.restClientWithCollection('localhost:19530', 'products');
-   * client.search([[0.1, 0.2]], 10, { vectorField: 'embedding' });
+   * export default function() {
+   *   const client = milvus.getClient('localhost:19530', 'products');
+   *   client.search([[0.1, 0.2]], 10, { vectorField: 'embedding' });
+   *   // Do NOT call client.close()
+   * }
    * ```
+   */
+  export function getClient(address: string, collectionName: string, token?: string): Client;
+
+  /**
+   * Returns a VU-level cached REST client. The HTTP connection pool is reused
+   * across iterations within the same VU. Do NOT call close() on cached clients.
+   *
+   * @param address - Milvus server address
+   * @param collectionName - Default collection name for all operations
+   * @param token - Optional authentication token
+   * @returns Cached RestClient object (reuses HTTP keep-alive pool)
+   * @example
+   * ```javascript
+   * export default function() {
+   *   const client = milvus.getRestClient('localhost:19530', 'products');
+   *   client.search([[0.1, 0.2]], 10, { vectorField: 'embedding' });
+   *   // Do NOT call client.close()
+   * }
+   * ```
+   */
+  export function getRestClient(address: string, collectionName: string, token?: string): RestClient;
+
+  // REST Client (per-call, creates new client each time)
+
+  /**
+   * Creates a new Milvus REST client using RESTful v2 API.
+   * For load testing, prefer getRestClient() which caches the client per VU.
+   */
+  export function restClient(address: string, token?: string): RestClient;
+
+  /**
+   * Creates a new collection-bound Milvus REST client.
+   * For load testing, prefer getRestClient() which caches the client per VU.
    */
   export function restClientWithCollection(address: string, collectionName: string, token?: string): RestClient;
 
@@ -611,8 +633,10 @@ declare module 'k6/x/milvus' {
   const milvus: {
     client: typeof client;
     clientWithCollection: typeof clientWithCollection;
+    getClient: typeof getClient;
     restClient: typeof restClient;
     restClientWithCollection: typeof restClientWithCollection;
+    getRestClient: typeof getRestClient;
   };
 
   export default milvus;

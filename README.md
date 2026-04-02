@@ -105,23 +105,8 @@ import milvus from 'k6/x/milvus';
 import { check } from 'k6';
 
 export default function() {
-  // Create collection-bound client (recommended)
-  const client = milvus.clientWithCollection('localhost:19530', 'products');
-
-  // Insert data
-  const insertResult = client.insert({
-    title: ['Product A', 'Product B'],
-    price: [19.99, 29.99],
-    embedding: [
-      [0.1, 0.2, 0.3, ...], // 128-dim vector
-      [0.4, 0.5, 0.6, ...]
-    ]
-  });
-
-  check(insertResult, {
-    'insert successful': (r) => r.success === true,
-    'insert fast': (r) => r.response_time_ms < 300,
-  });
+  // Use getClient for VU-level connection reuse (recommended for load testing)
+  const client = milvus.getClient('localhost:19530', 'products');
 
   // Search vectors
   const searchResult = client.search(
@@ -141,14 +126,7 @@ export default function() {
     'fast response': (r) => r.response_time_ms < 100,
   });
 
-  // Process results
-  if (searchResult.success) {
-    searchResult.result.forEach(hit => {
-      console.log(`${hit.title}: $${hit.price} (score: ${hit.score})`);
-    });
-  }
-
-  client.close();
+  // Do NOT call client.close() - connection is reused across iterations
 }
 ```
 
@@ -433,8 +411,12 @@ See [docs/API.md](docs/API.md) for complete API documentation.
 
 ### Client Creation
 
-- `milvus.client(address, token?)` - Create standard client
-- `milvus.clientWithCollection(address, collectionName, token?)` - Create collection-bound client
+- `milvus.getClient(address, collectionName, token?)` - **Recommended**: VU-level cached gRPC client
+- `milvus.getRestClient(address, collectionName, token?)` - **Recommended**: VU-level cached REST client
+- `milvus.client(address, token?)` - Create new gRPC client (per-call)
+- `milvus.clientWithCollection(address, collectionName, token?)` - Create new collection-bound gRPC client (per-call)
+- `milvus.restClient(address, token?)` - Create new REST client (per-call)
+- `milvus.restClientWithCollection(address, collectionName, token?)` - Create new collection-bound REST client (per-call)
 
 ### Collection Operations
 
@@ -495,12 +477,32 @@ See all examples in the [`examples/`](examples/) directory.
 
 ## Performance Tips
 
-1. **Use Collection-Bound Clients** - Cleaner code and fewer parameters
+1. **Use `getClient()` / `getRestClient()`** - VU-level connection reuse avoids per-iteration connection overhead (3.5x throughput improvement for gRPC)
 2. **Load Collections First** - Collections must be loaded before searching
 3. **Create Indexes** - Create indexes after inserting data for faster search
 4. **Batch Operations** - Insert/upsert multiple entities at once
 5. **Monitor Metrics** - Use `response_time_ms` and `recall` for observability
 6. **Proper Indexing** - Choose appropriate index types (HNSW for speed, IVF_FLAT for accuracy)
+
+### Connection Reuse (Important)
+
+For load testing, always use `getClient()` / `getRestClient()` instead of `client()` / `restClient()`:
+
+```javascript
+// ❌ Bad: new connection per iteration
+export default function() {
+  const client = milvus.client('localhost:19530');
+  client.search(...);
+  client.close();  // connection wasted
+}
+
+// ✅ Good: one connection per VU, reused across iterations
+export default function() {
+  const client = milvus.getClient('localhost:19530', 'my_collection');
+  client.search(...);
+  // Do NOT close - connection reused
+}
+```
 
 ## Configuration
 
