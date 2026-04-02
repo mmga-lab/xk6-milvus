@@ -60,6 +60,30 @@ func (m *Milvus) createRestClient(address, collectionName string, token ...strin
 	return rc
 }
 
+// GetRestClient returns a VU-level cached REST client for connection pool reuse.
+// First call creates the client; subsequent calls return the cached instance.
+// Reusing the http.Client preserves TCP keep-alive connections across iterations.
+//
+// Usage in k6:
+//
+//	import milvus from 'k6/x/milvus';
+//	export default function() {
+//	    const client = milvus.getRestClient(host, collection, token);
+//	    client.search(...);
+//	    // Do NOT call client.close() - client is reused across iterations
+//	}
+func (m *Milvus) GetRestClient(address, collectionName string, token ...string) *RestClient {
+	key := address + ":" + collectionName
+
+	if client, ok := m.restClients[key]; ok {
+		return client
+	}
+
+	client := m.createRestClient(address, collectionName, token...)
+	m.restClients[key] = client
+	return client
+}
+
 // Close is a no-op for REST client (stateless HTTP)
 func (rc *RestClient) Close() interface{} {
 	return toMap(&OperationResult{

@@ -86,7 +86,7 @@ export function setup() {
 }
 
 export default function() {
-    const client = milvus.clientWithCollection(MILVUS_HOST, COLLECTION_NAME);
+    const client = milvus.getClient(MILVUS_HOST, COLLECTION_NAME);
 
     console.log('\n=== Recall Validation Test ===\n');
 

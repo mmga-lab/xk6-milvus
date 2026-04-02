@@ -83,8 +83,8 @@ export function setup() {
 }
 
 export default function() {
-    // Use collection-bound client for cleaner code
-    const client = milvus.clientWithCollection(MILVUS_HOST, COLLECTION_NAME);
+    // Use getClient for VU-level connection reuse (one gRPC connection per VU)
+    const client = milvus.getClient(MILVUS_HOST, COLLECTION_NAME);
 
     // Example 1: Basic search
     const queryVector = generateRandomVector(VECTOR_DIM);
@@ -176,7 +176,7 @@ export default function() {
         'batch search fast': (r) => r.response_time_ms < 200,
     });
 
-    client.close();
+    // Do NOT close - connection is reused across iterations
 }
 
 export function teardown(data) {

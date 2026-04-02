@@ -115,7 +115,7 @@ func (c *Client) CreateIndex(fieldName string, indexParams map[string]interface{
 	}
 
 	option := milvusclient.NewCreateIndexOption(coll, fieldName, idx)
-	task, err := c.client.CreateIndex(c.ctx, option)
+	task, err := c.client.CreateIndex(c.context(), option)
 	if err != nil {
 		return toMap(&OperationResult{
 			Success:      false,
@@ -125,7 +125,7 @@ func (c *Client) CreateIndex(fieldName string, indexParams map[string]interface{
 	}
 
 	// Wait for index creation to complete
-	err = task.Await(c.ctx)
+	err = task.Await(c.context())
 	if err != nil {
 		return toMap(&OperationResult{
 			Success:      false,

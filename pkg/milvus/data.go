@@ -31,7 +31,7 @@ func (c *Client) Insert(data map[string]interface{}, collectionName ...string) i
 	}
 
 	option := milvusclient.NewColumnBasedInsertOption(coll, columns...)
-	result, err := c.client.Insert(c.ctx, option)
+	result, err := c.client.Insert(c.context(), option)
 	if err != nil {
 		return toMap(&OperationResult{
 			Success:      false,
@@ -72,7 +72,7 @@ func (c *Client) Upsert(data map[string]interface{}, collectionName ...string) i
 	}
 
 	option := milvusclient.NewColumnBasedInsertOption(coll, columns...)
-	result, err := c.client.Upsert(c.ctx, option)
+	result, err := c.client.Upsert(c.context(), option)
 	if err != nil {
 		return toMap(&OperationResult{
 			Success:      false,
@@ -105,7 +105,7 @@ func (c *Client) Flush(collectionName ...string) interface{} {
 	}
 
 	option := milvusclient.NewFlushOption(coll)
-	task, err := c.client.Flush(c.ctx, option)
+	task, err := c.client.Flush(c.context(), option)
 	if err != nil {
 		return toMap(&OperationResult{
 			Success:      false,
@@ -115,7 +115,7 @@ func (c *Client) Flush(collectionName ...string) interface{} {
 	}
 
 	// Wait for flush to complete
-	err = task.Await(c.ctx)
+	err = task.Await(c.context())
 	if err != nil {
 		return toMap(&OperationResult{
 			Success:      false,
@@ -148,7 +148,7 @@ func (c *Client) Delete(filter string, collectionName ...string) interface{} {
 	}
 
 	option := milvusclient.NewDeleteOption(coll).WithExpr(filter)
-	result, err := c.client.Delete(c.ctx, option)
+	result, err := c.client.Delete(c.context(), option)
 	if err != nil {
 		return toMap(&OperationResult{
 			Success:      false,

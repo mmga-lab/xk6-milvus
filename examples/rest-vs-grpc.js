@@ -80,9 +80,9 @@ export function setup() {
     client.close();
 }
 
-// gRPC search scenario
+// gRPC search scenario - connection reused across iterations
 export function grpcSearch() {
-    const client = milvus.clientWithCollection(MILVUS_HOST, COLLECTION_NAME);
+    const client = milvus.getClient(MILVUS_HOST, COLLECTION_NAME);
 
     const result = client.search(
         [generateRandomVector(VECTOR_DIM)],
@@ -100,12 +100,11 @@ export function grpcSearch() {
     });
 
     grpcSearchTime.add(result.response_time_ms);
-    client.close();
 }
 
-// REST search scenario
+// REST search scenario - HTTP connection pool reused across iterations
 export function restSearch() {
-    const client = milvus.restClientWithCollection(MILVUS_HOST, COLLECTION_NAME);
+    const client = milvus.getRestClient(MILVUS_HOST, COLLECTION_NAME);
 
     const result = client.search(
         [generateRandomVector(VECTOR_DIM)],
@@ -123,7 +122,6 @@ export function restSearch() {
     });
 
     restSearchTime.add(result.response_time_ms);
-    client.close();
 }
 
 export function teardown() {

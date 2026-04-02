@@ -77,7 +77,8 @@ export function setup() {
 }
 
 export default function () {
-    const client = milvus.restClientWithCollection(MILVUS_HOST, COLLECTION_NAME);
+    // VU-level connection reuse - reuses HTTP keep-alive pool across iterations
+    const client = milvus.getRestClient(MILVUS_HOST, COLLECTION_NAME);
 
     // Basic vector search
     const basicSearch = client.search(
@@ -137,7 +138,7 @@ export default function () {
         'query ok': (r) => r.success,
     });
 
-    client.close();
+    // Do NOT close - client is reused across iterations
 }
 
 export function teardown() {

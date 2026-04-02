@@ -160,7 +160,7 @@ func (c *Client) CreateCollection(schemaInput interface{}) interface{} {
 		option = option.WithShardNum(schema.NumShards)
 	}
 
-	err = c.client.CreateCollection(c.ctx, option)
+	err = c.client.CreateCollection(c.context(), option)
 	if err != nil {
 		return toMap(&OperationResult{
 			Success:      false,
@@ -186,7 +186,7 @@ func (c *Client) DropCollection(collectionName ...string) interface{} {
 	}
 
 	option := milvusclient.NewDropCollectionOption(name)
-	err := c.client.DropCollection(c.ctx, option)
+	err := c.client.DropCollection(c.context(), option)
 
 	if err != nil {
 		return toMap(&OperationResult{
@@ -221,7 +221,7 @@ func (c *Client) HasCollection(collectionName ...string) interface{} {
 	}
 
 	option := milvusclient.NewHasCollectionOption(name)
-	has, err := c.client.HasCollection(c.ctx, option)
+	has, err := c.client.HasCollection(c.context(), option)
 
 	if err != nil {
 		return toMap(&OperationResult{
@@ -256,7 +256,7 @@ func (c *Client) LoadCollection(collectionName ...string) interface{} {
 	}
 
 	option := milvusclient.NewLoadCollectionOption(name)
-	task, err := c.client.LoadCollection(c.ctx, option)
+	task, err := c.client.LoadCollection(c.context(), option)
 	if err != nil {
 		return toMap(&OperationResult{
 			Success:      false,
@@ -266,7 +266,7 @@ func (c *Client) LoadCollection(collectionName ...string) interface{} {
 	}
 
 	// Wait for collection to be loaded
-	err = task.Await(c.ctx)
+	err = task.Await(c.context())
 	if err != nil {
 		return toMap(&OperationResult{
 			Success:      false,
@@ -300,7 +300,7 @@ func (c *Client) ReleaseCollection(collectionName ...string) interface{} {
 	}
 
 	option := milvusclient.NewReleaseCollectionOption(name)
-	err := c.client.ReleaseCollection(c.ctx, option)
+	err := c.client.ReleaseCollection(c.context(), option)
 
 	if err != nil {
 		return toMap(&OperationResult{

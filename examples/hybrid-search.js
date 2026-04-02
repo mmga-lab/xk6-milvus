@@ -108,7 +108,8 @@ export function setup() {
 }
 
 export default function() {
-    const client = milvus.clientWithCollection(MILVUS_HOST, COLLECTION_NAME);
+    // VU-level connection reuse - one gRPC connection per VU
+    const client = milvus.getClient(MILVUS_HOST, COLLECTION_NAME);
 
     // Generate query vectors
     const queryDense = generateDenseVector(DENSE_DIM);
@@ -236,7 +237,7 @@ export default function() {
         });
     });
 
-    client.close();
+    // Do NOT close - connection is reused across iterations
 }
 
 export function teardown(data) {
