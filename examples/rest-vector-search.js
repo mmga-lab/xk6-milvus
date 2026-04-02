@@ -1,7 +1,8 @@
 // REST API Vector Search Example
 // Demonstrates various vector search patterns via Milvus RESTful v2 API.
+// Uses milvus.restClient() for REST and milvus.client() for gRPC.
 
-import milvusRest from '../lib/milvus-rest.js';
+import milvus from 'k6/x/milvus';
 import { check, sleep } from 'k6';
 
 export const options = {
@@ -19,7 +20,7 @@ function generateRandomVector(dim) {
 }
 
 export function setup() {
-    const client = milvusRest.client(MILVUS_HOST);
+    const client = milvus.restClient(MILVUS_HOST);
 
     // Drop if exists
     const hasResult = client.hasCollection(COLLECTION_NAME);
@@ -54,28 +55,29 @@ export function setup() {
     const batchSize = 100;
 
     for (let batch = 0; batch < NUM_ENTITIES / batchSize; batch++) {
-        const rows = [];
+        const data = {
+            category: [],
+            price: [],
+            embedding: [],
+        };
         for (let i = 0; i < batchSize; i++) {
-            rows.push({
-                category: categories[Math.floor(Math.random() * categories.length)],
-                price: Math.round(Math.random() * 500 * 100) / 100,
-                embedding: generateRandomVector(VECTOR_DIM),
-            });
+            data.category.push(categories[Math.floor(Math.random() * categories.length)]);
+            data.price.push(Math.round(Math.random() * 500 * 100) / 100);
+            data.embedding.push(generateRandomVector(VECTOR_DIM));
         }
-        const insertRes = client.insert(rows, COLLECTION_NAME);
+        const insertRes = client.insert(data, COLLECTION_NAME);
         check(insertRes, {
             [`batch ${batch + 1} inserted`]: (r) => r.success,
         });
     }
 
-    sleep(2); // Wait for data availability
-
+    sleep(2);
     client.close();
     return { ready: true };
 }
 
 export default function () {
-    const client = milvusRest.clientWithCollection(MILVUS_HOST, COLLECTION_NAME);
+    const client = milvus.restClientWithCollection(MILVUS_HOST, COLLECTION_NAME);
 
     // Basic vector search
     const basicSearch = client.search(
@@ -139,7 +141,7 @@ export default function () {
 }
 
 export function teardown() {
-    const client = milvusRest.client(MILVUS_HOST);
+    const client = milvus.restClient(MILVUS_HOST);
     client.dropCollection(COLLECTION_NAME);
     client.close();
 }

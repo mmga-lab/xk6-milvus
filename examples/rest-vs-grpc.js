@@ -1,9 +1,8 @@
 // REST vs gRPC Comparison Example
-// Shows how to use both gRPC and REST clients side by side.
+// Shows how to use both gRPC and REST clients from the same module.
 // Useful for comparing performance between the two protocols.
 
 import milvus from 'k6/x/milvus';
-import milvusRest from '../lib/milvus-rest.js';
 import { check, sleep } from 'k6';
 import { Trend } from 'k6/metrics';
 
@@ -26,8 +25,7 @@ export const options = {
     },
 };
 
-const MILVUS_GRPC = __ENV.MILVUS_HOST || 'localhost:19530';
-const MILVUS_REST = __ENV.MILVUS_REST_HOST || 'localhost:19530';
+const MILVUS_HOST = __ENV.MILVUS_HOST || 'localhost:19530';
 const COLLECTION_NAME = 'protocol_compare';
 const VECTOR_DIM = 128;
 
@@ -39,8 +37,8 @@ function generateRandomVector(dim) {
 }
 
 export function setup() {
-    // Use REST client for setup (works with standard k6 too)
-    const client = milvusRest.client(MILVUS_REST);
+    // Use REST client for setup
+    const client = milvus.restClient(MILVUS_HOST);
 
     const hasResult = client.hasCollection(COLLECTION_NAME);
     if (hasResult.success && hasResult.result.exists) {
@@ -67,14 +65,15 @@ export function setup() {
     // Insert test data
     const categories = ['A', 'B', 'C'];
     for (let batch = 0; batch < 10; batch++) {
-        const rows = [];
+        const data = {
+            category: [],
+            embedding: [],
+        };
         for (let i = 0; i < 100; i++) {
-            rows.push({
-                category: categories[Math.floor(Math.random() * 3)],
-                embedding: generateRandomVector(VECTOR_DIM),
-            });
+            data.category.push(categories[Math.floor(Math.random() * 3)]);
+            data.embedding.push(generateRandomVector(VECTOR_DIM));
         }
-        client.insert(rows, COLLECTION_NAME);
+        client.insert(data, COLLECTION_NAME);
     }
 
     sleep(2);
@@ -83,7 +82,7 @@ export function setup() {
 
 // gRPC search scenario
 export function grpcSearch() {
-    const client = milvus.clientWithCollection(MILVUS_GRPC, COLLECTION_NAME);
+    const client = milvus.clientWithCollection(MILVUS_HOST, COLLECTION_NAME);
 
     const result = client.search(
         [generateRandomVector(VECTOR_DIM)],
@@ -106,7 +105,7 @@ export function grpcSearch() {
 
 // REST search scenario
 export function restSearch() {
-    const client = milvusRest.clientWithCollection(MILVUS_REST, COLLECTION_NAME);
+    const client = milvus.restClientWithCollection(MILVUS_HOST, COLLECTION_NAME);
 
     const result = client.search(
         [generateRandomVector(VECTOR_DIM)],
@@ -128,7 +127,7 @@ export function restSearch() {
 }
 
 export function teardown() {
-    const client = milvusRest.client(MILVUS_REST);
+    const client = milvus.restClient(MILVUS_HOST);
     client.dropCollection(COLLECTION_NAME);
     client.close();
 }

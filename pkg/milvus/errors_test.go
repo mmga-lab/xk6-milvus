@@ -61,9 +61,9 @@ func TestPredefinedErrors(t *testing.T) {
 
 func TestMilvusError_Error(t *testing.T) {
 	tests := []struct {
-		name    string
-		err     *MilvusError
-		want    string
+		name string
+		err  *MilvusError
+		want string
 	}{
 		{
 			name: "with context",

@@ -38,9 +38,11 @@ func (m *Milvus) Exports() modules.Exports {
 	return modules.Exports{
 		Default: m,
 		Named: map[string]interface{}{
-			"client":               m.Client,
-			"clientWithCollection": m.ClientWithCollection,
-			"getClient":            m.GetClient, // VU-level cached client
+			"client":                   m.Client,
+			"clientWithCollection":     m.ClientWithCollection,
+			"getClient":                m.GetClient, // VU-level cached client
+			"restClient":               m.RestClient,
+			"restClientWithCollection": m.RestClientWithCollection,
 		},
 	}
 }

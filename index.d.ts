@@ -530,10 +530,89 @@ declare module 'k6/x/milvus' {
     };
   }
 
+  // REST Client
+
+  /**
+   * Creates a Milvus REST client using RESTful v2 API.
+   * Uses HTTP instead of gRPC - same OperationResult interface.
+   *
+   * @param address - Milvus server address (e.g., "localhost:19530")
+   * @param token - Optional authentication token (format: "username:password")
+   * @returns RestClient object for executing Milvus operations via REST API
+   * @example
+   * ```javascript
+   * const client = milvus.restClient('localhost:19530');
+   * const authClient = milvus.restClient('localhost:19530', 'root:Milvus');
+   * ```
+   */
+  export function restClient(address: string, token?: string): RestClient;
+
+  /**
+   * Creates a collection-bound Milvus REST client.
+   *
+   * @param address - Milvus server address
+   * @param collectionName - Default collection name for all operations
+   * @param token - Optional authentication token
+   * @returns Collection-bound RestClient object
+   * @example
+   * ```javascript
+   * const client = milvus.restClientWithCollection('localhost:19530', 'products');
+   * client.search([[0.1, 0.2]], 10, { vectorField: 'embedding' });
+   * ```
+   */
+  export function restClientWithCollection(address: string, collectionName: string, token?: string): RestClient;
+
+  /**
+   * Milvus REST client interface using RESTful v2 API.
+   * Provides the same core operations as the gRPC Client, plus additional REST-only operations.
+   */
+  export interface RestClient {
+    // Collection Operations
+    listCollections(dbName?: string): OperationResult;
+    createCollection(schema: CollectionSchema): OperationResult;
+    createCollectionFromJSON(schemaJSON: string): OperationResult;
+    describeCollection(collectionName?: string): OperationResult;
+    dropCollection(collectionName?: string): OperationResult;
+    hasCollection(collectionName?: string): OperationResult;
+    loadCollection(collectionName?: string): OperationResult;
+    releaseCollection(collectionName?: string): OperationResult;
+    getLoadState(collectionName?: string): OperationResult;
+    getCollectionStats(collectionName?: string): OperationResult;
+    flush(collectionName?: string): OperationResult;
+    renameCollection(collectionName: string, newCollectionName: string): OperationResult;
+
+    // Data Operations
+    insert(data: ColumnData, collectionName?: string): OperationResult;
+    upsert(data: ColumnData, collectionName?: string): OperationResult;
+    delete(filter: string, collectionName?: string): OperationResult;
+    get(ids: any, outputFields: string[], collectionName?: string): OperationResult;
+
+    // Search Operations
+    search(vectors: number[][], topK: number, params: SearchParams, collectionName?: string): OperationResult;
+    query(filter: string, outputFields: string[], collectionName?: string): OperationResult;
+    hybridSearch(requests: SearchRequest[], reranker: Reranker, limit: number, outputFields: string[], collectionName?: string): OperationResult;
+
+    // Index Operations
+    createIndex(fieldName: string, indexParams: IndexParams, collectionName?: string): OperationResult;
+    describeIndex(indexName: string, collectionName?: string): OperationResult;
+    dropIndex(indexName: string, collectionName?: string): OperationResult;
+
+    // Partition Operations
+    listPartitions(collectionName?: string): OperationResult;
+    createPartition(partitionName: string, collectionName?: string): OperationResult;
+    dropPartition(partitionName: string, collectionName?: string): OperationResult;
+    hasPartition(partitionName: string, collectionName?: string): OperationResult;
+
+    // Lifecycle
+    close(): OperationResult;
+  }
+
   // Default export
   const milvus: {
     client: typeof client;
     clientWithCollection: typeof clientWithCollection;
+    restClient: typeof restClient;
+    restClientWithCollection: typeof restClientWithCollection;
   };
 
   export default milvus;

@@ -34,9 +34,6 @@ xk6-milvus/
 │   ├── config.go            # Configuration structs
 │   ├── helpers.go           # Helper functions
 │   └── *_test.go            # Co-located tests
-├── lib/                     # JavaScript libraries
-│   ├── milvus-rest.js       # REST API client (Milvus RESTful v2)
-│   └── milvus-rest.d.ts     # TypeScript definitions for REST client
 ├── examples/                # Usage examples (gRPC + REST)
 ├── docs/                    # Documentation
 │   └── API.md               # Complete API reference
@@ -51,6 +48,7 @@ xk6-milvus/
 - **Client**: Milvus client wrapper using VU context for proper lifecycle management
 - Wraps the official Milvus Go SDK v2.5.4 to provide k6-friendly methods
 - Registers using `modules.Register("k6/x/milvus", new(RootModule))`
+- **RestClient**: Milvus REST API client using Go's `net/http` for RESTful v2 endpoints
 
 ### Key Principles
 
@@ -386,30 +384,21 @@ check(upsertResult, {
 
 ## REST API Client
 
-The REST client (`lib/milvus-rest.js`) is a JavaScript library that wraps k6's built-in HTTP module
-to call Milvus RESTful v2 API endpoints. It requires no custom k6 binary.
+The REST client uses Go's `net/http` to call Milvus RESTful v2 API endpoints.
+It is integrated into the same `k6/x/milvus` module alongside the gRPC client.
 
 ### REST Client Usage
 
 ```javascript
-import milvusRest from '../lib/milvus-rest.js';
+import milvus from 'k6/x/milvus';
 
 export default function() {
-  // Factory functions match gRPC client naming
-  const client = milvusRest.client('localhost:19530');
-  const boundClient = milvusRest.clientWithCollection('localhost:19530', 'my_collection');
+  // REST factory functions mirror gRPC naming
+  const client = milvus.restClient('localhost:19530');
+  const boundClient = milvus.restClientWithCollection('localhost:19530', 'my_collection');
 
   // With authentication
-  const authClient = milvusRest.client('localhost:19530', 'root:Milvus');
-
-  // Advanced: direct constructor with all options
-  const advClient = new milvusRest.MilvusRestClient('http://localhost:19530', {
-    collectionName: 'my_collection',
-    token: 'root:Milvus',
-    dbName: 'my_db',
-    timeout: '30s',
-    tags: { protocol: 'rest' },
-  });
+  const authClient = milvus.restClient('localhost:19530', 'root:Milvus');
 }
 ```
 
@@ -417,12 +406,11 @@ export default function() {
 
 | Feature | gRPC Client | REST Client |
 |---------|-------------|-------------|
-| Binary | Custom k6 build required | Standard k6 works |
-| Import | `import milvus from 'k6/x/milvus'` | `import milvusRest from '../lib/milvus-rest.js'` |
-| Data format | Column-based | Row-based (also supports column-based with auto-conversion) |
+| Factory | `milvus.client()` | `milvus.restClient()` |
+| Protocol | gRPC (binary) | HTTP REST (JSON) |
+| Data format | Column-based | Column-based (auto-converted to row-based for REST API) |
 | recall metric | Native SDK support | Not available via REST API |
-| Extra operations | - | get, getLoadState, getCollectionStats, database/partition/alias/import/user/role management |
-| HTTP metrics | No | k6 built-in HTTP metrics |
+| Extra operations | - | get, getLoadState, getCollectionStats, rename, partition/alias management |
 
 ### REST API Endpoints Covered
 

@@ -1,7 +1,7 @@
 // REST API Hybrid Search Example
 // Demonstrates multi-vector hybrid search via Milvus RESTful v2 API.
 
-import milvusRest from '../lib/milvus-rest.js';
+import milvus from 'k6/x/milvus';
 import { check, sleep } from 'k6';
 
 export const options = {
@@ -29,7 +29,7 @@ function generateSparseVector(dim, sparsity) {
 }
 
 export default function () {
-    const client = milvusRest.client(MILVUS_HOST);
+    const client = milvus.restClient(MILVUS_HOST);
 
     // Clean up if exists
     const hasResult = client.hasCollection(COLLECTION_NAME);
@@ -72,14 +72,14 @@ export default function () {
         'Monitor Stand', 'Webcam HD', 'Headset Pro', 'Desk Lamp',
         'Cable Organizer', 'Mouse Pad XL'];
 
-    const rows = titles.map((title, i) => ({
-        title: title,
-        price: Math.round((10 + Math.random() * 490) * 100) / 100,
-        dense_vector: generateDenseVector(DENSE_DIM),
-        sparse_vector: generateSparseVector(1000, 0.02),
-    }));
+    const data = {
+        title: titles,
+        price: titles.map(() => Math.round((10 + Math.random() * 490) * 100) / 100),
+        dense_vector: titles.map(() => generateDenseVector(DENSE_DIM)),
+        sparse_vector: titles.map(() => generateSparseVector(1000, 0.02)),
+    };
 
-    const insertResult = client.insert(rows, COLLECTION_NAME);
+    const insertResult = client.insert(data, COLLECTION_NAME);
     check(insertResult, { 'insert ok': (r) => r.success });
 
     sleep(1);

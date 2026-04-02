@@ -1,8 +1,8 @@
 // REST API Basic Operations Example
-// Demonstrates CRUD operations using Milvus RESTful v2 API with k6's built-in HTTP.
-// No custom k6 binary needed - works with standard k6.
+// Demonstrates CRUD operations using Milvus RESTful v2 API.
+// Uses the same k6/x/milvus module - just call restClient() instead of client().
 
-import milvusRest from '../lib/milvus-rest.js';
+import milvus from 'k6/x/milvus';
 import { check, sleep } from 'k6';
 
 export const options = {
@@ -19,9 +19,9 @@ function generateRandomVector(dim) {
 }
 
 export default function () {
-    // Step 1: Create a REST client
+    // Step 1: Create a REST client (use restClient instead of client)
     console.log('Step 1: Creating Milvus REST client...');
-    const client = milvusRest.client(MILVUS_HOST);
+    const client = milvus.restClient(MILVUS_HOST);
 
     // Step 2: Create a collection
     console.log('Step 2: Creating collection...');
@@ -56,8 +56,8 @@ export default function () {
         'collection loaded': (r) => r.success === true,
     });
 
-    // Step 5: Insert data (column-based format, auto-converted to row-based)
-    console.log('Step 5: Inserting data (column format)...');
+    // Step 5: Insert data (column-based format, auto-converted to row-based for REST)
+    console.log('Step 5: Inserting data...');
     const insertResult = client.insert({
         title: ['Apple', 'Banana', 'Orange', 'Grape'],
         price: [1.99, 0.99, 2.49, 3.99],
@@ -74,18 +74,6 @@ export default function () {
         'inserted 4 items': (r) => r.result.insert_count === 4,
     });
     console.log(`Inserted ${insertResult.result.insert_count} items in ${insertResult.response_time_ms}ms`);
-
-    // Step 5b: Insert data (row-based format, native REST format)
-    console.log('Step 5b: Inserting data (row format)...');
-    const insertRowResult = client.insert([
-        { title: 'Mango', price: 4.99, embedding: generateRandomVector(VECTOR_DIM) },
-        { title: 'Peach', price: 2.99, embedding: generateRandomVector(VECTOR_DIM) },
-    ], COLLECTION_NAME);
-
-    check(insertRowResult, {
-        'row insert successful': (r) => r.success === true,
-        'inserted 2 items': (r) => r.result.insert_count === 2,
-    });
 
     sleep(1);
 
@@ -136,16 +124,13 @@ export default function () {
     }
 
     // Step 8: Get entities by IDs
-    if (insertResult.success && insertResult.result.ids.length > 0) {
+    if (insertResult.success && insertResult.result.ids) {
         console.log('Step 8: Getting entities by IDs...');
         const ids = insertResult.result.ids.slice(0, 2);
         const getResult = client.get(ids, ['id', 'title', 'price'], COLLECTION_NAME);
         check(getResult, {
             'get successful': (r) => r.success === true,
         });
-        if (getResult.success && getResult.result) {
-            console.log(`Got ${getResult.result.length} entities by ID`);
-        }
     }
 
     // Step 9: Delete

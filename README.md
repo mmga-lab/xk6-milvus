@@ -288,27 +288,27 @@ export default function () {
 
 ## REST API Support (No Custom Binary Needed)
 
-xk6-milvus also provides a JavaScript library for Milvus RESTful v2 API that works with **standard k6** - no custom binary required. This is ideal when you want to:
-
-- Test Milvus without building a custom k6 binary
-- Compare gRPC vs REST performance
-- Use Milvus REST API-specific features (bulk import, database management, etc.)
+xk6-milvus also supports Milvus RESTful v2 API through `restClient()` and `restClientWithCollection()`. Same import path, same `OperationResult` structure - just switch the factory function:
 
 ### Quick Start (REST)
 
 ```javascript
-import milvusRest from '../lib/milvus-rest.js';
+import milvus from 'k6/x/milvus';
 import { check } from 'k6';
 
 export default function() {
-  // Create REST client (same API pattern as gRPC client)
-  const client = milvusRest.clientWithCollection('localhost:19530', 'products');
+  // Use restClientWithCollection instead of clientWithCollection
+  const client = milvus.restClientWithCollection('localhost:19530', 'products');
 
-  // Insert data (supports both column-based and row-based formats)
-  const insertResult = client.insert([
-    { title: 'Product A', price: 19.99, embedding: [0.1, 0.2, 0.3] },
-    { title: 'Product B', price: 29.99, embedding: [0.4, 0.5, 0.6] },
-  ]);
+  // Same API as gRPC client - insert, search, query, etc.
+  const insertResult = client.insert({
+    title: ['Product A', 'Product B'],
+    price: [19.99, 29.99],
+    embedding: [
+      [0.1, 0.2, 0.3],
+      [0.4, 0.5, 0.6],
+    ]
+  });
 
   check(insertResult, {
     'insert successful': (r) => r.success === true,
@@ -541,9 +541,6 @@ xk6-milvus/
 │   ├── converters.go        # Type conversions
 │   ├── types.go             # Type definitions
 │   └── *_test.go            # Tests
-├── lib/                     # JavaScript libraries
-│   ├── milvus-rest.js       # REST API client (no custom binary needed)
-│   └── milvus-rest.d.ts     # TypeScript definitions for REST client
 ├── examples/                # Usage examples (gRPC + REST)
 ├── docs/                    # Documentation
 │   └── API.md               # Complete API reference

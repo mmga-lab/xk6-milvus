@@ -84,8 +84,8 @@ func setupTestClientWithoutIndex(t *testing.T) (*Client, string, func()) {
 				IsAutoID:     false,
 			},
 			{
-				Name:     "title",
-				DataType: "VarChar",
+				Name:      "title",
+				DataType:  "VarChar",
 				MaxLength: 200,
 			},
 			{
