@@ -17,6 +17,7 @@ A [k6 extension](https://k6.io/docs/extensions/) for load testing [Milvus](https
 - 📝 **BM25 Full-Text** - Automatic sparse vector generation for text search
 - ⚡ **High Performance** - Optimized for concurrent load testing scenarios
 - 🛡️ **VU Isolation** - Proper k6 VU context handling for thread-safe testing
+- 🌐 **REST API Support** - JavaScript library for Milvus RESTful v2 API (no custom binary needed)
 
 ## Use Cases
 
@@ -285,6 +286,77 @@ export default function () {
 }
 ```
 
+## REST API Support (No Custom Binary Needed)
+
+xk6-milvus also provides a JavaScript library for Milvus RESTful v2 API that works with **standard k6** - no custom binary required. This is ideal when you want to:
+
+- Test Milvus without building a custom k6 binary
+- Compare gRPC vs REST performance
+- Use Milvus REST API-specific features (bulk import, database management, etc.)
+
+### Quick Start (REST)
+
+```javascript
+import milvusRest from '../lib/milvus-rest.js';
+import { check } from 'k6';
+
+export default function() {
+  // Create REST client (same API pattern as gRPC client)
+  const client = milvusRest.clientWithCollection('localhost:19530', 'products');
+
+  // Insert data (supports both column-based and row-based formats)
+  const insertResult = client.insert([
+    { title: 'Product A', price: 19.99, embedding: [0.1, 0.2, 0.3] },
+    { title: 'Product B', price: 29.99, embedding: [0.4, 0.5, 0.6] },
+  ]);
+
+  check(insertResult, {
+    'insert successful': (r) => r.success === true,
+  });
+
+  // Search vectors
+  const searchResult = client.search(
+    [[0.1, 0.2, 0.3]],
+    10,
+    {
+      vectorField: 'embedding',
+      outputFields: ['title', 'price'],
+      expr: 'price > 15.0'
+    }
+  );
+
+  check(searchResult, {
+    'search successful': (r) => r.success === true,
+    'not empty': (r) => r.empty === false,
+  });
+
+  client.close();
+}
+```
+
+### REST API Additional Features
+
+The REST client supports operations not available in the gRPC extension:
+
+- `client.get(ids, outputFields)` - Get entities by IDs
+- `client.getLoadState()` - Check collection load progress
+- `client.getCollectionStats()` - Get entity count
+- `client.renameCollection()` - Rename a collection
+- `client.listDatabases()` / `createDatabase()` / `dropDatabase()` - Database management
+- `client.createPartition()` / `dropPartition()` / `listPartitions()` - Partition management
+- `client.createAlias()` / `dropAlias()` / `listAliases()` - Alias management
+- `client.createImportJob()` / `getImportJobProgress()` - Bulk import operations
+- `client.listUsers()` / `createUser()` / `listRoles()` - User & role management
+
+### REST Examples
+
+| Example                            | Description                        |
+| ---------------------------------- | ---------------------------------- |
+| `examples/rest-basic-operations.js`| Basic CRUD via REST API            |
+| `examples/rest-vector-search.js`   | Vector search patterns via REST    |
+| `examples/rest-hybrid-search.js`   | Hybrid search via REST             |
+| `examples/rest-vs-grpc.js`         | gRPC vs REST performance comparison|
+
 ## TypeScript Support
 
 xk6-milvus provides TypeScript type definitions for enhanced development experience with IDE autocompletion, type checking, and inline documentation.
@@ -407,13 +479,17 @@ All operations return `OperationResult`:
 
 ### Progressive Learning
 
-| Example                             | Description                |
-| ----------------------------------- | -------------------------- |
-| `examples/basic-operations.js`      | Basic CRUD operations      |
-| `examples/collection-management.js` | Collection lifecycle       |
-| `examples/vector-search.js`         | Vector similarity search   |
-| `examples/hybrid-search.js`         | Multi-vector hybrid search |
-| `examples/full-text-search.js`      | BM25 full-text search      |
+| Example                              | Protocol | Description                         |
+| ------------------------------------ | -------- | ----------------------------------- |
+| `examples/basic-operations.js`       | gRPC     | Basic CRUD operations               |
+| `examples/collection-management.js`  | gRPC     | Collection lifecycle                |
+| `examples/vector-search.js`          | gRPC     | Vector similarity search            |
+| `examples/hybrid-search.js`          | gRPC     | Multi-vector hybrid search          |
+| `examples/full-text-search.js`       | gRPC     | BM25 full-text search               |
+| `examples/rest-basic-operations.js`  | REST     | Basic CRUD via REST API             |
+| `examples/rest-vector-search.js`     | REST     | Vector search via REST API          |
+| `examples/rest-hybrid-search.js`     | REST     | Hybrid search via REST API          |
+| `examples/rest-vs-grpc.js`           | Both     | gRPC vs REST performance comparison |
 
 See all examples in the [`examples/`](examples/) directory.
 
@@ -455,7 +531,7 @@ export const options = {
 ```text
 xk6-milvus/
 ├── register.go              # Extension registration
-├── pkg/milvus/              # Core implementation
+├── pkg/milvus/              # Core gRPC implementation
 │   ├── module.go            # k6 module registration
 │   ├── client.go            # Client management
 │   ├── collection.go        # Collection operations
@@ -465,7 +541,10 @@ xk6-milvus/
 │   ├── converters.go        # Type conversions
 │   ├── types.go             # Type definitions
 │   └── *_test.go            # Tests
-├── examples/                # Usage examples
+├── lib/                     # JavaScript libraries
+│   ├── milvus-rest.js       # REST API client (no custom binary needed)
+│   └── milvus-rest.d.ts     # TypeScript definitions for REST client
+├── examples/                # Usage examples (gRPC + REST)
 ├── docs/                    # Documentation
 │   └── API.md               # Complete API reference
 ├── .github/                 # CI/CD workflows

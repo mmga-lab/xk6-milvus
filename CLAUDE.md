@@ -4,7 +4,12 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-xk6-milvus is a k6 extension for load testing Milvus vector databases. It provides a JavaScript API to interact with Milvus from k6 test scripts, following Locust's Milvus client design pattern for consistency and observability.
+xk6-milvus is a k6 extension for load testing Milvus vector databases. It provides two ways to interact with Milvus:
+
+1. **gRPC client** (Go extension) - High-performance native gRPC client requiring custom k6 binary
+2. **REST client** (JavaScript library) - RESTful v2 API client using k6's built-in HTTP, no custom binary needed
+
+Both clients follow Locust's Milvus client design pattern and return unified `OperationResult` structures.
 
 ## Architecture
 
@@ -29,7 +34,10 @@ xk6-milvus/
 │   ├── config.go            # Configuration structs
 │   ├── helpers.go           # Helper functions
 │   └── *_test.go            # Co-located tests
-├── examples/                # Usage examples
+├── lib/                     # JavaScript libraries
+│   ├── milvus-rest.js       # REST API client (Milvus RESTful v2)
+│   └── milvus-rest.d.ts     # TypeScript definitions for REST client
+├── examples/                # Usage examples (gRPC + REST)
 ├── docs/                    # Documentation
 │   └── API.md               # Complete API reference
 └── .github/                 # CI/CD workflows and templates
@@ -376,6 +384,64 @@ check(upsertResult, {
 });
 ```
 
+## REST API Client
+
+The REST client (`lib/milvus-rest.js`) is a JavaScript library that wraps k6's built-in HTTP module
+to call Milvus RESTful v2 API endpoints. It requires no custom k6 binary.
+
+### REST Client Usage
+
+```javascript
+import milvusRest from '../lib/milvus-rest.js';
+
+export default function() {
+  // Factory functions match gRPC client naming
+  const client = milvusRest.client('localhost:19530');
+  const boundClient = milvusRest.clientWithCollection('localhost:19530', 'my_collection');
+
+  // With authentication
+  const authClient = milvusRest.client('localhost:19530', 'root:Milvus');
+
+  // Advanced: direct constructor with all options
+  const advClient = new milvusRest.MilvusRestClient('http://localhost:19530', {
+    collectionName: 'my_collection',
+    token: 'root:Milvus',
+    dbName: 'my_db',
+    timeout: '30s',
+    tags: { protocol: 'rest' },
+  });
+}
+```
+
+### REST vs gRPC Key Differences
+
+| Feature | gRPC Client | REST Client |
+|---------|-------------|-------------|
+| Binary | Custom k6 build required | Standard k6 works |
+| Import | `import milvus from 'k6/x/milvus'` | `import milvusRest from '../lib/milvus-rest.js'` |
+| Data format | Column-based | Row-based (also supports column-based with auto-conversion) |
+| recall metric | Native SDK support | Not available via REST API |
+| Extra operations | - | get, getLoadState, getCollectionStats, database/partition/alias/import/user/role management |
+| HTTP metrics | No | k6 built-in HTTP metrics |
+
+### REST API Endpoints Covered
+
+- **Collection**: list, create, describe, drop, has, load, release, flush, getLoadState, getStats, rename
+- **Data**: insert, upsert, delete, get, search, query, hybridSearch
+- **Index**: create, describe, drop
+- **Partition**: list, create, drop, has
+- **Alias**: create, drop, list
+- **Database**: list, create, drop
+- **Import**: createJob, getProgress, listJobs
+- **User/Role**: CRUD + privilege management
+
+### REST Examples
+
+- `examples/rest-basic-operations.js` - Basic CRUD via REST API
+- `examples/rest-vector-search.js` - Vector search patterns via REST
+- `examples/rest-hybrid-search.js` - Hybrid search via REST
+- `examples/rest-vs-grpc.js` - gRPC vs REST performance comparison
+
 ## Additional Resources
 
 - **Milvus Go SDK source code**: `/Users/wxzhu/workspace/milvus/client`
@@ -391,12 +457,15 @@ check(upsertResult, {
 
 ### Examples (examples/ directory)
 
-- `basic-operations.js` - Basic CRUD operations
-- `collection-management.js` - Collection lifecycle management
-- `vector-search.js` - Vector similarity search patterns
-- `hybrid-search.js` - Multi-vector hybrid search
-- `full-text-search.js` - BM25 full-text search
-- Older examples in root for backward compatibility
+- `basic-operations.js` - Basic CRUD operations (gRPC)
+- `collection-management.js` - Collection lifecycle management (gRPC)
+- `vector-search.js` - Vector similarity search patterns (gRPC)
+- `hybrid-search.js` - Multi-vector hybrid search (gRPC)
+- `full-text-search.js` - BM25 full-text search (gRPC)
+- `rest-basic-operations.js` - Basic CRUD operations (REST)
+- `rest-vector-search.js` - Vector search patterns (REST)
+- `rest-hybrid-search.js` - Hybrid search (REST)
+- `rest-vs-grpc.js` - gRPC vs REST performance comparison
 
 ### GitHub Configuration
 
