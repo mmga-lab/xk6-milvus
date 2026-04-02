@@ -4,7 +4,12 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-xk6-milvus is a k6 extension for load testing Milvus vector databases. It provides a JavaScript API to interact with Milvus from k6 test scripts, following Locust's Milvus client design pattern for consistency and observability.
+xk6-milvus is a k6 extension for load testing Milvus vector databases. It provides two ways to interact with Milvus:
+
+1. **gRPC client** (Go extension) - High-performance native gRPC client requiring custom k6 binary
+2. **REST client** (JavaScript library) - RESTful v2 API client using k6's built-in HTTP, no custom binary needed
+
+Both clients follow Locust's Milvus client design pattern and return unified `OperationResult` structures.
 
 ## Architecture
 
@@ -29,7 +34,7 @@ xk6-milvus/
 │   ├── config.go            # Configuration structs
 │   ├── helpers.go           # Helper functions
 │   └── *_test.go            # Co-located tests
-├── examples/                # Usage examples
+├── examples/                # Usage examples (gRPC + REST)
 ├── docs/                    # Documentation
 │   └── API.md               # Complete API reference
 └── .github/                 # CI/CD workflows and templates
@@ -43,14 +48,25 @@ xk6-milvus/
 - **Client**: Milvus client wrapper using VU context for proper lifecycle management
 - Wraps the official Milvus Go SDK v2.5.4 to provide k6-friendly methods
 - Registers using `modules.Register("k6/x/milvus", new(RootModule))`
+- **RestClient**: Milvus REST API client using Go's `net/http` for RESTful v2 endpoints
 
 ### Key Principles
 
 - Each VU gets its own Milvus instance for proper isolation
-- VU context is used for all operations (not background context)
+- Operations dynamically call `vu.Context()` to get the current iteration's context
+- `getClient()` / `getRestClient()` cache connections at VU level for reuse across iterations
 - Exports both default and named exports following ES module conventions
-- Supports collection-bound clients for cleaner code
 - Clean separation of concerns in pkg/milvus/
+
+### Connection Lifecycle
+
+| Method | Connection per | Use case |
+|--------|---------------|----------|
+| `getClient()` / `getRestClient()` | VU (cached) | **Load testing** — one connection per VU, reused across iterations |
+| `client()` / `restClient()` | Call (new each time) | Setup/teardown or single-iteration scripts |
+
+For load testing, always use `getClient()` / `getRestClient()` in `default function()`.
+Never call `close()` on cached clients.
 
 ## Common Commands
 
@@ -376,6 +392,54 @@ check(upsertResult, {
 });
 ```
 
+## REST API Client
+
+The REST client uses Go's `net/http` to call Milvus RESTful v2 API endpoints.
+It is integrated into the same `k6/x/milvus` module alongside the gRPC client.
+
+### REST Client Usage
+
+```javascript
+import milvus from 'k6/x/milvus';
+
+export default function() {
+  // REST factory functions mirror gRPC naming
+  const client = milvus.restClient('localhost:19530');
+  const boundClient = milvus.restClientWithCollection('localhost:19530', 'my_collection');
+
+  // With authentication
+  const authClient = milvus.restClient('localhost:19530', 'root:Milvus');
+}
+```
+
+### REST vs gRPC Key Differences
+
+| Feature | gRPC Client | REST Client |
+|---------|-------------|-------------|
+| Factory | `milvus.client()` | `milvus.restClient()` |
+| Protocol | gRPC (binary) | HTTP REST (JSON) |
+| Data format | Column-based | Column-based (auto-converted to row-based for REST API) |
+| recall metric | Native SDK support | Not available via REST API |
+| Extra operations | - | get, getLoadState, getCollectionStats, rename, partition/alias management |
+
+### REST API Endpoints Covered
+
+- **Collection**: list, create, describe, drop, has, load, release, flush, getLoadState, getStats, rename
+- **Data**: insert, upsert, delete, get, search, query, hybridSearch
+- **Index**: create, describe, drop
+- **Partition**: list, create, drop, has
+- **Alias**: create, drop, list
+- **Database**: list, create, drop
+- **Import**: createJob, getProgress, listJobs
+- **User/Role**: CRUD + privilege management
+
+### REST Examples
+
+- `examples/rest-basic-operations.js` - Basic CRUD via REST API
+- `examples/rest-vector-search.js` - Vector search patterns via REST
+- `examples/rest-hybrid-search.js` - Hybrid search via REST
+- `examples/rest-vs-grpc.js` - gRPC vs REST performance comparison
+
 ## Additional Resources
 
 - **Milvus Go SDK source code**: `/Users/wxzhu/workspace/milvus/client`
@@ -391,12 +455,15 @@ check(upsertResult, {
 
 ### Examples (examples/ directory)
 
-- `basic-operations.js` - Basic CRUD operations
-- `collection-management.js` - Collection lifecycle management
-- `vector-search.js` - Vector similarity search patterns
-- `hybrid-search.js` - Multi-vector hybrid search
-- `full-text-search.js` - BM25 full-text search
-- Older examples in root for backward compatibility
+- `basic-operations.js` - Basic CRUD operations (gRPC)
+- `collection-management.js` - Collection lifecycle management (gRPC)
+- `vector-search.js` - Vector similarity search patterns (gRPC)
+- `hybrid-search.js` - Multi-vector hybrid search (gRPC)
+- `full-text-search.js` - BM25 full-text search (gRPC)
+- `rest-basic-operations.js` - Basic CRUD operations (REST)
+- `rest-vector-search.js` - Vector search patterns (REST)
+- `rest-hybrid-search.js` - Hybrid search (REST)
+- `rest-vs-grpc.js` - gRPC vs REST performance comparison
 
 ### GitHub Configuration
 

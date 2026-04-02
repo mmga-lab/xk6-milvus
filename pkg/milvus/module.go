@@ -19,16 +19,18 @@ type RootModule struct{}
 
 // Milvus represents the JS module instance for each VU
 type Milvus struct {
-	vu      modules.VU
-	clients map[string]*Client // VU-level client cache (key: address:collection)
+	vu          modules.VU
+	clients     map[string]*Client     // VU-level gRPC client cache
+	restClients map[string]*RestClient // VU-level REST client cache
 }
 
 // NewModuleInstance implements the modules.Module interface
 // It creates a new instance of the Milvus module for each VU
 func (*RootModule) NewModuleInstance(vu modules.VU) modules.Instance {
 	return &Milvus{
-		vu:      vu,
-		clients: make(map[string]*Client),
+		vu:          vu,
+		clients:     make(map[string]*Client),
+		restClients: make(map[string]*RestClient),
 	}
 }
 
@@ -38,9 +40,12 @@ func (m *Milvus) Exports() modules.Exports {
 	return modules.Exports{
 		Default: m,
 		Named: map[string]interface{}{
-			"client":               m.Client,
-			"clientWithCollection": m.ClientWithCollection,
-			"getClient":            m.GetClient, // VU-level cached client
+			"client":                   m.Client,
+			"clientWithCollection":     m.ClientWithCollection,
+			"getClient":                m.GetClient,     // VU-level cached gRPC client
+			"restClient":               m.RestClient,
+			"restClientWithCollection": m.RestClientWithCollection,
+			"getRestClient":            m.GetRestClient, // VU-level cached REST client
 		},
 	}
 }

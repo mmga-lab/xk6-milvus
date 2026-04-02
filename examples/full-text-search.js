@@ -146,7 +146,8 @@ export function setup() {
 }
 
 export default function() {
-    const client = milvus.clientWithCollection(MILVUS_HOST, COLLECTION_NAME);
+    // VU-level connection reuse
+    const client = milvus.getClient(MILVUS_HOST, COLLECTION_NAME);
 
     // Example 1: Full-text search for "vector database"
     // Note: In production, you would use the search endpoint with text query
@@ -204,7 +205,7 @@ export default function() {
         'deleted document': (r) => r.result.delete_count === 1,
     });
 
-    client.close();
+    // Do NOT close - connection is reused across iterations
 }
 
 export function teardown(data) {
@@ -212,6 +213,5 @@ export function teardown(data) {
         const client = milvus.client(MILVUS_HOST);
         client.dropCollection(COLLECTION_NAME);
         client.close();
-        console.log('Teardown complete');
     }
 }

@@ -60,40 +60,33 @@ func (m *Milvus) createClient(address, collectionName string, token ...string) (
 
 // Close closes the Milvus client connection
 func (c *Client) Close() error {
-	return c.client.Close(c.ctx)
+	return c.client.Close(c.context())
 }
 
-// GetClient returns a cached client for the given address and collection.
-// If no cached client exists, it creates a new one and caches it.
-// This method is designed for VU-level client reuse to avoid repeated
-// DescribeCollection calls (Milvus SDK caches schema per client).
+// GetClient returns a VU-level cached gRPC client for connection reuse.
+// First call creates the connection; subsequent calls in the same VU return the cached client.
+// Each operation dynamically uses vu.Context() so the context is always fresh.
 //
 // Usage in k6:
 //
 //	import milvus from 'k6/x/milvus';
 //	export default function() {
 //	    const client = milvus.getClient(host, collection, token);
-//	    client.upsert({...});
-//	    // Don't call client.close() - let it be reused
+//	    client.search(...);
+//	    // Do NOT call client.close() - connection is reused across iterations
 //	}
 func (m *Milvus) GetClient(address, collectionName string, token ...string) (*Client, error) {
-	// Build cache key
 	key := address + ":" + collectionName
 
-	// Check if we have a cached client
 	if client, ok := m.clients[key]; ok {
-		// Update context for current iteration
-		client.ctx = m.vu.Context()
 		return client, nil
 	}
 
-	// Create new client
 	client, err := m.createClient(address, collectionName, token...)
 	if err != nil {
 		return nil, err
 	}
 
-	// Cache it
 	m.clients[key] = client
 	return client, nil
 }

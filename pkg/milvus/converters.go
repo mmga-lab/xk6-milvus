@@ -214,7 +214,7 @@ func (c *Client) convertSparseVectors(fieldName string, v []map[string]interface
 	for i, sparseMap := range v {
 		var positions []uint32
 		var values []float32
-		
+
 		for key, val := range sparseMap {
 			// Convert string key to uint32
 			var idx uint32
@@ -224,13 +224,13 @@ func (c *Client) convertSparseVectors(fieldName string, v []map[string]interface
 				values = append(values, float32(fval))
 			}
 		}
-		
+
 		if sparse, err := entity.NewSliceSparseEmbedding(positions, values); err == nil {
 			sparseVectors[i] = sparse
 		} else {
 			return nil, wrapError("convertSparseVectors", err)
 		}
 	}
-	
+
 	return column.NewColumnSparseVectors(fieldName, sparseVectors), nil
 }

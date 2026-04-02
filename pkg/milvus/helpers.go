@@ -1,6 +1,19 @@
 package milvus
 
-import "encoding/json"
+import (
+	"context"
+	"encoding/json"
+)
+
+// context returns the current VU context for operations.
+// This ensures each operation uses the current iteration's context,
+// not a stale context from a previous iteration.
+func (c *Client) context() context.Context {
+	if c.vu != nil {
+		return c.vu.Context()
+	}
+	return c.ctx
+}
 
 // getCollectionName returns collection name from params or default collection
 func (c *Client) getCollectionName(collectionName ...string) string {

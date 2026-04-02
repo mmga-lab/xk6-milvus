@@ -37,7 +37,7 @@ func (c *Client) CreateSnapshot(name string, collectionName interface{}, options
 		}
 	}
 
-	err := c.client.CreateSnapshot(c.ctx, opt)
+	err := c.client.CreateSnapshot(c.context(), opt)
 	if err != nil {
 		return toMap(&OperationResult{
 			Success:      false,
@@ -61,7 +61,7 @@ func (c *Client) DropSnapshot(name string) interface{} {
 
 	opt := milvusclient.NewDropSnapshotOption(name)
 
-	err := c.client.DropSnapshot(c.ctx, opt)
+	err := c.client.DropSnapshot(c.context(), opt)
 	if err != nil {
 		return toMap(&OperationResult{
 			Success:      false,
@@ -94,7 +94,7 @@ func (c *Client) ListSnapshots(options ...map[string]interface{}) interface{} {
 		}
 	}
 
-	snapshots, err := c.client.ListSnapshots(c.ctx, opt)
+	snapshots, err := c.client.ListSnapshots(c.context(), opt)
 	if err != nil {
 		return toMap(&OperationResult{
 			Success:      false,
@@ -117,7 +117,7 @@ func (c *Client) DescribeSnapshot(name string) interface{} {
 
 	opt := milvusclient.NewDescribeSnapshotOption(name)
 
-	resp, err := c.client.DescribeSnapshot(c.ctx, opt)
+	resp, err := c.client.DescribeSnapshot(c.context(), opt)
 	if err != nil {
 		return toMap(&OperationResult{
 			Success:      false,
@@ -166,7 +166,7 @@ func (c *Client) RestoreSnapshot(name string, collectionName string, options ...
 		}
 	}
 
-	jobID, err := c.client.RestoreSnapshot(c.ctx, opt)
+	jobID, err := c.client.RestoreSnapshot(c.context(), opt)
 	if err != nil {
 		return toMap(&OperationResult{
 			Success:      false,
@@ -190,7 +190,7 @@ func (c *Client) GetRestoreSnapshotState(jobID int64) interface{} {
 
 	opt := milvusclient.NewGetRestoreSnapshotStateOption(jobID)
 
-	info, err := c.client.GetRestoreSnapshotState(c.ctx, opt)
+	info, err := c.client.GetRestoreSnapshotState(c.context(), opt)
 	if err != nil {
 		return toMap(&OperationResult{
 			Success:      false,
@@ -231,7 +231,7 @@ func (c *Client) ListRestoreSnapshotJobs(options ...map[string]interface{}) inte
 		}
 	}
 
-	jobs, err := c.client.ListRestoreSnapshotJobs(c.ctx, opt)
+	jobs, err := c.client.ListRestoreSnapshotJobs(c.context(), opt)
 	if err != nil {
 		return toMap(&OperationResult{
 			Success:      false,

@@ -67,7 +67,7 @@ func (c *Client) Search(vectors [][]float32, topK int, params map[string]interfa
 	}
 
 	// Execute search
-	resultSets, err := c.client.Search(c.ctx, searchOption)
+	resultSets, err := c.client.Search(c.context(), searchOption)
 	if err != nil {
 		return toMap(&OperationResult{
 			Success:      false,
@@ -299,7 +299,7 @@ func (c *Client) HybridSearch(requestsInput interface{}, rerankerInput interface
 	}
 
 	// Execute hybrid search
-	resultSets, err := c.client.HybridSearch(c.ctx, hybridOption)
+	resultSets, err := c.client.HybridSearch(c.context(), hybridOption)
 	if err != nil {
 		return toMap(&OperationResult{
 			Success:      false,
@@ -394,7 +394,7 @@ func (c *Client) Query(filter string, outputFields []interface{}, collectionName
 		WithFilter(filter).
 		WithOutputFields(fields...)
 
-	resultSet, err := c.client.Query(c.ctx, option)
+	resultSet, err := c.client.Query(c.context(), option)
 	if err != nil {
 		return toMap(&OperationResult{
 			Success:      false,

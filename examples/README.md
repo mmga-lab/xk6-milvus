@@ -4,6 +4,8 @@ This directory contains progressive examples demonstrating xk6-milvus features.
 
 ## Examples Overview
 
+### gRPC Client
+
 | Example                    | Description                       | Difficulty   | Duration |
 | -------------------------- | --------------------------------- | ------------ | -------- |
 | `basic-operations.js`      | CRUD operations walkthrough       | Beginner     | ~1 min   |
@@ -11,6 +13,15 @@ This directory contains progressive examples demonstrating xk6-milvus features.
 | `vector-search.js`         | Vector similarity search patterns | Intermediate | 10s      |
 | `hybrid-search.js`         | Multi-vector hybrid search        | Advanced     | 10s      |
 | `full-text-search.js`      | BM25 full-text search             | Advanced     | 10s      |
+
+### REST Client
+
+| Example                      | Description                        | Difficulty   | Duration |
+| ---------------------------- | ---------------------------------- | ------------ | -------- |
+| `rest-basic-operations.js`   | CRUD operations via REST API       | Beginner     | ~1 min   |
+| `rest-vector-search.js`      | Vector search via REST API         | Intermediate | 10s      |
+| `rest-hybrid-search.js`      | Hybrid search via REST API         | Advanced     | ~1 min   |
+| `rest-vs-grpc.js`            | gRPC vs REST performance comparison| Advanced     | ~50s     |
 
 ## Prerequisites
 
@@ -158,6 +169,25 @@ Top 3 results:
   1. Apple - $1.99 (distance: 0.23)
   2. Orange - $2.49 (distance: 0.45)
   3. Banana - $0.99 (distance: 0.67)
+```
+
+## Connection Reuse
+
+For load testing, always use `getClient()` / `getRestClient()` to reuse connections across iterations:
+
+```javascript
+import milvus from 'k6/x/milvus';
+
+export default function() {
+  // ✅ VU-level cached client - connection reused across iterations
+  const grpcClient = milvus.getClient('localhost:19530', 'my_collection');
+  const restClient = milvus.getRestClient('localhost:19530', 'my_collection');
+
+  grpcClient.search(...);
+  restClient.search(...);
+
+  // Do NOT call close() - connections are reused
+}
 ```
 
 ## Load Testing

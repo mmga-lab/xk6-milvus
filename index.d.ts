@@ -530,10 +530,113 @@ declare module 'k6/x/milvus' {
     };
   }
 
+  // VU-Level Cached Clients (Recommended for load testing)
+
+  /**
+   * Returns a VU-level cached gRPC client. The connection is created on first call
+   * and reused across iterations within the same VU. Do NOT call close() on cached clients.
+   *
+   * @param address - Milvus server address
+   * @param collectionName - Default collection name for all operations
+   * @param token - Optional authentication token
+   * @returns Cached Client object (one gRPC connection per VU)
+   * @example
+   * ```javascript
+   * export default function() {
+   *   const client = milvus.getClient('localhost:19530', 'products');
+   *   client.search([[0.1, 0.2]], 10, { vectorField: 'embedding' });
+   *   // Do NOT call client.close()
+   * }
+   * ```
+   */
+  export function getClient(address: string, collectionName: string, token?: string): Client;
+
+  /**
+   * Returns a VU-level cached REST client. The HTTP connection pool is reused
+   * across iterations within the same VU. Do NOT call close() on cached clients.
+   *
+   * @param address - Milvus server address
+   * @param collectionName - Default collection name for all operations
+   * @param token - Optional authentication token
+   * @returns Cached RestClient object (reuses HTTP keep-alive pool)
+   * @example
+   * ```javascript
+   * export default function() {
+   *   const client = milvus.getRestClient('localhost:19530', 'products');
+   *   client.search([[0.1, 0.2]], 10, { vectorField: 'embedding' });
+   *   // Do NOT call client.close()
+   * }
+   * ```
+   */
+  export function getRestClient(address: string, collectionName: string, token?: string): RestClient;
+
+  // REST Client (per-call, creates new client each time)
+
+  /**
+   * Creates a new Milvus REST client using RESTful v2 API.
+   * For load testing, prefer getRestClient() which caches the client per VU.
+   */
+  export function restClient(address: string, token?: string): RestClient;
+
+  /**
+   * Creates a new collection-bound Milvus REST client.
+   * For load testing, prefer getRestClient() which caches the client per VU.
+   */
+  export function restClientWithCollection(address: string, collectionName: string, token?: string): RestClient;
+
+  /**
+   * Milvus REST client interface using RESTful v2 API.
+   * Provides the same core operations as the gRPC Client, plus additional REST-only operations.
+   */
+  export interface RestClient {
+    // Collection Operations
+    listCollections(dbName?: string): OperationResult;
+    createCollection(schema: CollectionSchema): OperationResult;
+    createCollectionFromJSON(schemaJSON: string): OperationResult;
+    describeCollection(collectionName?: string): OperationResult;
+    dropCollection(collectionName?: string): OperationResult;
+    hasCollection(collectionName?: string): OperationResult;
+    loadCollection(collectionName?: string): OperationResult;
+    releaseCollection(collectionName?: string): OperationResult;
+    getLoadState(collectionName?: string): OperationResult;
+    getCollectionStats(collectionName?: string): OperationResult;
+    flush(collectionName?: string): OperationResult;
+    renameCollection(collectionName: string, newCollectionName: string): OperationResult;
+
+    // Data Operations
+    insert(data: ColumnData, collectionName?: string): OperationResult;
+    upsert(data: ColumnData, collectionName?: string): OperationResult;
+    delete(filter: string, collectionName?: string): OperationResult;
+    get(ids: any, outputFields: string[], collectionName?: string): OperationResult;
+
+    // Search Operations
+    search(vectors: number[][], topK: number, params: SearchParams, collectionName?: string): OperationResult;
+    query(filter: string, outputFields: string[], collectionName?: string): OperationResult;
+    hybridSearch(requests: SearchRequest[], reranker: Reranker, limit: number, outputFields: string[], collectionName?: string): OperationResult;
+
+    // Index Operations
+    createIndex(fieldName: string, indexParams: IndexParams, collectionName?: string): OperationResult;
+    describeIndex(indexName: string, collectionName?: string): OperationResult;
+    dropIndex(indexName: string, collectionName?: string): OperationResult;
+
+    // Partition Operations
+    listPartitions(collectionName?: string): OperationResult;
+    createPartition(partitionName: string, collectionName?: string): OperationResult;
+    dropPartition(partitionName: string, collectionName?: string): OperationResult;
+    hasPartition(partitionName: string, collectionName?: string): OperationResult;
+
+    // Lifecycle
+    close(): OperationResult;
+  }
+
   // Default export
   const milvus: {
     client: typeof client;
     clientWithCollection: typeof clientWithCollection;
+    getClient: typeof getClient;
+    restClient: typeof restClient;
+    restClientWithCollection: typeof restClientWithCollection;
+    getRestClient: typeof getRestClient;
   };
 
   export default milvus;

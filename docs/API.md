@@ -8,7 +8,7 @@ Complete API reference for xk6-milvus extension.
 import milvus from "k6/x/milvus";
 ```
 
-After importing, you have access to the `milvus` module object which provides functions to create Milvus clients.
+After importing, you have access to the `milvus` module object which provides factory functions to create gRPC and REST clients.
 
 ### TypeScript Support
 
@@ -18,56 +18,90 @@ xk6-milvus provides TypeScript type definitions for IDE autocompletion and type 
 
 ## API Overview
 
-xk6-milvus uses a **two-tier API design** for clarity and ease of use:
+xk6-milvus provides both **gRPC** and **REST** clients with identical `OperationResult` interfaces.
 
 ### Module-Level API (`milvus` object)
 
-After `import milvus from 'k6/x/milvus'`, the `milvus` object provides **2 factory functions** to create clients:
+| Function | Purpose |
+| --- | --- |
+| `milvus.getClient(address, collection, token?)` | **Recommended**: VU-level cached gRPC client |
+| `milvus.getRestClient(address, collection, token?)` | **Recommended**: VU-level cached REST client |
+| `milvus.client(address, token?)` | Create new gRPC client (per-call) |
+| `milvus.clientWithCollection(address, collection, token?)` | Create new collection-bound gRPC client (per-call) |
+| `milvus.restClient(address, token?)` | Create new REST client (per-call) |
+| `milvus.restClientWithCollection(address, collection, token?)` | Create new collection-bound REST client (per-call) |
 
-| Function                                                   | Purpose                                                              |
-| ---------------------------------------------------------- | -------------------------------------------------------------------- |
-| `milvus.client(address, token?)`                           | Create a standard client for multi-collection operations             |
-| `milvus.clientWithCollection(address, collection, token?)` | Create a collection-bound client (recommended for single collection) |
+### Client-Level API
 
-### Client-Level API (`client` object)
+Both `Client` (gRPC) and `RestClient` (REST) provide:
 
-The `Client` object created by `milvus.client()` or `milvus.clientWithCollection()` provides all database operations:
-
-| Category       | Methods                                                                                                      |
-| -------------- | ------------------------------------------------------------------------------------------------------------ |
+| Category | Methods |
+| --- | --- |
 | **Collection** | createCollection, createCollectionFromJSON, dropCollection, hasCollection, loadCollection, releaseCollection |
-| **Data**       | insert, upsert, delete                                                                                       |
-| **Search**     | search, query, hybridSearch                                                                                  |
-| **Index**      | createIndex                                                                                                  |
-| **Lifecycle**  | close                                                                                                        |
+| **Data** | insert, upsert, delete |
+| **Search** | search, query, hybridSearch |
+| **Index** | createIndex |
+| **Lifecycle** | close |
+
+RestClient also provides: listCollections, describeCollection, getLoadState, getCollectionStats, flush, renameCollection, get, describeIndex, dropIndex, listPartitions, createPartition, dropPartition, hasPartition.
+
+### Connection Reuse (Important for Load Testing)
+
+```javascript
+// ✅ Recommended: VU-level connection reuse
+export default function() {
+  const client = milvus.getClient("localhost:19530", "products");
+  client.search(vectors, 10, params);
+  // Do NOT call close() - connection reused across iterations
+}
+
+// ❌ Avoid in load tests: new connection per iteration
+export default function() {
+  const client = milvus.client("localhost:19530");
+  client.search(vectors, 10, params, "products");
+  client.close();
+}
+```
 
 ### Complete Usage Flow
 
 ```javascript
 import milvus from "k6/x/milvus";
 
-// Step 1: Create client (module-level)
-const client = milvus.client("localhost:19530");
+export function setup() {
+  const client = milvus.client("localhost:19530");  // per-call client OK in setup
+  client.createCollection(schema);
+  client.createIndex("embedding", indexParams, "products");
+  client.loadCollection("products");
+  client.close();
+}
 
-// Step 2: Use client methods (client-level)
-client.createCollection(schema);
-client.insert(data);
-client.search(vectors, 10, params);
-client.close();
+export default function() {
+  const client = milvus.getClient("localhost:19530", "products");  // VU-cached
+  client.search(vectors, 10, params);
+}
+
+export function teardown() {
+  const client = milvus.client("localhost:19530");
+  client.dropCollection("products");
+  client.close();
+}
 ```
 
 ---
 
 ## Method Reference
 
-Quick reference for all available methods with links to detailed documentation.
-
 ### Module-Level Functions
 
-| Function                                                   | Description                      | Section                                  |
-| ---------------------------------------------------------- | -------------------------------- | ---------------------------------------- |
-| `milvus.client(address, token?)`                           | Create a standard Milvus client  | [→ Details](#milvusclient)               |
-| `milvus.clientWithCollection(address, collection, token?)` | Create a collection-bound client | [→ Details](#milvusclientwithcollection) |
+| Function | Description |
+| --- | --- |
+| `milvus.getClient(address, collection, token?)` | VU-cached gRPC client |
+| `milvus.getRestClient(address, collection, token?)` | VU-cached REST client |
+| `milvus.client(address, token?)` | New gRPC client |
+| `milvus.clientWithCollection(address, collection, token?)` | New collection-bound gRPC client |
+| `milvus.restClient(address, token?)` | New REST client |
+| `milvus.restClientWithCollection(address, collection, token?)` | New collection-bound REST client |
 
 ### Client Methods
 
@@ -1145,14 +1179,62 @@ console.log("Success!");
 
 ---
 
+## REST Client
+
+The REST client (`RestClient`) uses Milvus RESTful v2 API via Go's `net/http`. It shares the same `OperationResult` interface as the gRPC client.
+
+### REST-Only Methods
+
+These methods are available only on `RestClient`, not on the gRPC `Client`:
+
+| Method | Description |
+| --- | --- |
+| `client.listCollections(dbName?)` | List all collections |
+| `client.describeCollection(collectionName?)` | Get collection schema and details |
+| `client.getLoadState(collectionName?)` | Get load state and progress |
+| `client.getCollectionStats(collectionName?)` | Get entity count |
+| `client.flush(collectionName?)` | Flush streaming data |
+| `client.renameCollection(old, new)` | Rename a collection |
+| `client.get(ids, outputFields, collectionName?)` | Get entities by IDs |
+| `client.describeIndex(indexName, collectionName?)` | Get index details |
+| `client.dropIndex(indexName, collectionName?)` | Drop an index |
+| `client.listPartitions(collectionName?)` | List partitions |
+| `client.createPartition(name, collectionName?)` | Create partition |
+| `client.dropPartition(name, collectionName?)` | Drop partition |
+| `client.hasPartition(name, collectionName?)` | Check partition existence |
+
+### REST Client Example
+
+```javascript
+import milvus from 'k6/x/milvus';
+
+export default function() {
+  const client = milvus.getRestClient('localhost:19530', 'products');
+
+  // Same API as gRPC client
+  const result = client.search([[0.1, 0.2, 0.3]], 10, {
+    vectorField: 'embedding',
+    outputFields: ['title', 'price'],
+  });
+
+  // REST-only: get entities by ID
+  const getResult = client.get([1, 2, 3], ['title', 'price']);
+
+  // REST-only: check load progress
+  const state = client.getLoadState();  // { loadState: "LoadStateLoaded", loadProgress: 100 }
+}
+```
+
+---
+
 ## Performance Tips
 
-1. **Use Collection-Bound Clients** for cleaner code when working with single collections
+1. **Use `getClient()` / `getRestClient()`** - VU-level connection reuse avoids per-iteration overhead (3.5x throughput for gRPC)
 2. **Load Collections** before searching - unloaded collections cannot be searched
 3. **Create Indexes** after inserting data for better search performance
 4. **Batch Inserts** - insert multiple entities at once instead of one-by-one
 5. **Monitor Response Times** - use `response_time_ms` to identify slow operations
-6. **Check Recall** - use `recall` metric to verify search quality
+6. **Check Recall** - use `recall` metric to verify search quality (gRPC only)
 
 ---
 
@@ -1172,20 +1254,24 @@ console.log("Success!");
 
 ## Method Summary
 
-| Method                          | Purpose                        | Returns         |
-| ------------------------------- | ------------------------------ | --------------- |
-| `milvus.client()`               | Create standard client         | Client          |
-| `milvus.clientWithCollection()` | Create collection-bound client | Client          |
-| `client.createCollection()`     | Create new collection          | OperationResult |
-| `client.dropCollection()`       | Delete collection              | OperationResult |
-| `client.hasCollection()`        | Check existence                | OperationResult |
-| `client.loadCollection()`       | Load to memory                 | OperationResult |
-| `client.releaseCollection()`    | Unload from memory             | OperationResult |
-| `client.insert()`               | Insert data                    | OperationResult |
-| `client.upsert()`               | Insert or update               | OperationResult |
-| `client.delete()`               | Delete by filter               | OperationResult |
-| `client.search()`               | Vector search                  | OperationResult |
-| `client.query()`                | Scalar query                   | OperationResult |
-| `client.hybridSearch()`         | Multi-vector search            | OperationResult |
-| `client.createIndex()`          | Create index                   | OperationResult |
-| `client.close()`                | Close connection               | OperationResult |
+| Method | Purpose | Returns |
+| --- | --- | --- |
+| `milvus.getClient()` | VU-cached gRPC client (recommended) | Client |
+| `milvus.getRestClient()` | VU-cached REST client (recommended) | RestClient |
+| `milvus.client()` | New gRPC client (per-call) | Client |
+| `milvus.clientWithCollection()` | New collection-bound gRPC client | Client |
+| `milvus.restClient()` | New REST client (per-call) | RestClient |
+| `milvus.restClientWithCollection()` | New collection-bound REST client | RestClient |
+| `client.createCollection()` | Create new collection | OperationResult |
+| `client.dropCollection()` | Delete collection | OperationResult |
+| `client.hasCollection()` | Check existence | OperationResult |
+| `client.loadCollection()` | Load to memory | OperationResult |
+| `client.releaseCollection()` | Unload from memory | OperationResult |
+| `client.insert()` | Insert data | OperationResult |
+| `client.upsert()` | Insert or update | OperationResult |
+| `client.delete()` | Delete by filter | OperationResult |
+| `client.search()` | Vector search | OperationResult |
+| `client.query()` | Scalar query | OperationResult |
+| `client.hybridSearch()` | Multi-vector search | OperationResult |
+| `client.createIndex()` | Create index | OperationResult |
+| `client.close()` | Close connection | OperationResult |
