@@ -5,15 +5,17 @@ import (
 	"fmt"
 )
 
-// Search performs vector similarity search via REST API
-func (rc *RestClient) Search(vectors [][]float32, topK int, params map[string]interface{}, collectionName ...string) interface{} {
+// Search performs vector similarity search via REST API.
+// The data parameter accepts dense vectors ([][]float32), text queries ([]string for BM25),
+// or sparse vectors — it is passed through to the REST API as-is.
+func (rc *RestClient) Search(data interface{}, topK int, params map[string]interface{}, collectionName ...string) interface{} {
 	coll := rc.getCollectionName(collectionName...)
 	if coll == "" {
 		return errorResult(0, ErrCollectionNameRequired.Error())
 	}
 
 	body := rc.baseBody(coll)
-	body["data"] = vectors
+	body["data"] = data
 	body["limit"] = topK
 
 	if params != nil {

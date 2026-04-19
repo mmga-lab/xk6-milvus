@@ -266,7 +266,7 @@ func TestConvertDataToColumns(t *testing.T) {
 				},
 			},
 			wantErr:     true,
-			errContains: "invalid data type",
+			errContains: "non-numeric elements",
 		},
 		{
 			name: "nested vectors with non-slice first element but nested second",

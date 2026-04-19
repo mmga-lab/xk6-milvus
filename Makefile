@@ -10,7 +10,8 @@ install-xk6: ## Install xk6 tool
 	go install go.k6.io/xk6/cmd/xk6@latest
 
 build: ## Build k6 with xk6-milvus extension
-	$(shell go env GOPATH)/bin/xk6 build --with github.com/mmga-lab/xk6-milvus=.
+	$(shell go env GOPATH)/bin/xk6 build --with github.com/mmga-lab/xk6-milvus=. \
+		$(shell grep '^replace' go.mod 2>/dev/null | sed 's/^replace /--replace /; s/ => /=/; s/ \(v[0-9]\)/@\1/' | tr '\n' ' ')
 
 test: ## Run tests
 	go test -v -race ./pkg/milvus

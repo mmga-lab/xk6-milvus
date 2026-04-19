@@ -10,16 +10,10 @@ WORKDIR /build
 # Install xk6 latest
 RUN go install go.k6.io/xk6/cmd/xk6@latest
 
-# Copy go module files
-COPY go.mod go.sum ./
-
-# Download dependencies
-RUN go mod download
-
-# Copy source code
+# Copy source code (including vendor/)
 COPY . .
 
-# Build k6 with xk6-milvus extension
+# Build k6 with xk6-milvus extension using vendored dependencies
 RUN xk6 build \
     --with github.com/mmga-lab/xk6-milvus=. \
     --output /k6

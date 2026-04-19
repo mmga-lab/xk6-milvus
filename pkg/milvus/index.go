@@ -140,3 +140,33 @@ func (c *Client) CreateIndex(fieldName string, indexParams map[string]interface{
 		Result:       map[string]interface{}{"field": fieldName, "index_type": indexType},
 	})
 }
+
+// DropIndex drops an index by field name
+func (c *Client) DropIndex(fieldName string, collectionName ...string) interface{} {
+	start := time.Now()
+
+	coll := c.getCollectionName(collectionName...)
+	if coll == "" {
+		return toMap(&OperationResult{
+			Success:      false,
+			ResponseTime: float64(time.Since(start).Milliseconds()),
+			Error:        "collection name required",
+		})
+	}
+
+	option := milvusclient.NewDropIndexOption(coll, fieldName)
+	err := c.client.DropIndex(c.context(), option)
+	if err != nil {
+		return toMap(&OperationResult{
+			Success:      false,
+			ResponseTime: float64(time.Since(start).Milliseconds()),
+			Error:        fmt.Sprintf("failed to drop index: %v", err),
+		})
+	}
+
+	return toMap(&OperationResult{
+		Success:      true,
+		ResponseTime: float64(time.Since(start).Milliseconds()),
+		Result:       map[string]interface{}{"field": fieldName},
+	})
+}

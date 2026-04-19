@@ -98,6 +98,58 @@ func (c *Client) CreateCollection(schemaInput interface{}) interface{} {
 			entityField = entityField.WithDataType(entity.FieldTypeBFloat16Vector).WithDim(field.Dimension)
 		case "SparseFloatVector":
 			entityField = entityField.WithDataType(entity.FieldTypeSparseVector)
+		case "Array":
+			entityField = entityField.WithDataType(entity.FieldTypeArray)
+			switch field.ElementType {
+			case "Bool":
+				entityField = entityField.WithElementType(entity.FieldTypeBool)
+			case "Int8":
+				entityField = entityField.WithElementType(entity.FieldTypeInt8)
+			case "Int16":
+				entityField = entityField.WithElementType(entity.FieldTypeInt16)
+			case "Int32":
+				entityField = entityField.WithElementType(entity.FieldTypeInt32)
+			case "Int64":
+				entityField = entityField.WithElementType(entity.FieldTypeInt64)
+			case "Float":
+				entityField = entityField.WithElementType(entity.FieldTypeFloat)
+			case "Double":
+				entityField = entityField.WithElementType(entity.FieldTypeDouble)
+			case "VarChar":
+				entityField = entityField.WithElementType(entity.FieldTypeVarChar)
+			case "Struct":
+				entityField = entityField.WithElementType(entity.FieldTypeStruct)
+				if len(field.StructFields) > 0 {
+					structSchema := entity.NewStructSchema()
+					for _, sf := range field.StructFields {
+						structField := entity.NewField().WithName(sf.Name)
+						switch sf.DataType {
+						case "Int64":
+							structField = structField.WithDataType(entity.FieldTypeInt64)
+						case "Int32":
+							structField = structField.WithDataType(entity.FieldTypeInt32)
+						case "Float":
+							structField = structField.WithDataType(entity.FieldTypeFloat)
+						case "Double":
+							structField = structField.WithDataType(entity.FieldTypeDouble)
+						case "VarChar":
+							structField = structField.WithDataType(entity.FieldTypeVarChar)
+							if sf.MaxLength > 0 {
+								structField = structField.WithMaxLength(sf.MaxLength)
+							}
+						case "Bool":
+							structField = structField.WithDataType(entity.FieldTypeBool)
+						case "FloatVector":
+							structField = structField.WithDataType(entity.FieldTypeFloatVector).WithDim(sf.Dimension)
+						}
+						structSchema = structSchema.WithField(structField)
+					}
+					entityField = entityField.WithStructSchema(structSchema)
+				}
+			}
+			if field.MaxCapacity > 0 {
+				entityField = entityField.WithMaxCapacity(field.MaxCapacity)
+			}
 		default:
 			return toMap(&OperationResult{
 				Success:      false,
@@ -123,6 +175,9 @@ func (c *Client) CreateCollection(schemaInput interface{}) interface{} {
 		}
 		if field.EnableMatch {
 			entityField = entityField.WithEnableMatch(true)
+		}
+		if field.Nullable != nil && *field.Nullable {
+			entityField = entityField.WithNullable(true)
 		}
 
 		entitySchema = entitySchema.WithField(entityField)
@@ -314,5 +369,53 @@ func (c *Client) ReleaseCollection(collectionName ...string) interface{} {
 		Success:      true,
 		ResponseTime: float64(time.Since(start).Milliseconds()),
 		Result:       map[string]interface{}{"collection": name},
+	})
+}
+
+// CreatePartition creates a partition in a collection
+func (c *Client) CreatePartition(partitionName string, collectionName ...string) interface{} {
+	start := time.Now()
+	coll := c.getCollectionName(collectionName...)
+	if coll == "" {
+		return toMap(&OperationResult{
+			Success: false, ResponseTime: float64(time.Since(start).Milliseconds()),
+			Error: "collection name required",
+		})
+	}
+	option := milvusclient.NewCreatePartitionOption(coll, partitionName)
+	err := c.client.CreatePartition(c.context(), option)
+	if err != nil {
+		return toMap(&OperationResult{
+			Success: false, ResponseTime: float64(time.Since(start).Milliseconds()),
+			Error: fmt.Sprintf("failed to create partition: %v", err),
+		})
+	}
+	return toMap(&OperationResult{
+		Success: true, ResponseTime: float64(time.Since(start).Milliseconds()),
+		Result: map[string]interface{}{"partition": partitionName},
+	})
+}
+
+// DropPartition drops a partition from a collection
+func (c *Client) DropPartition(partitionName string, collectionName ...string) interface{} {
+	start := time.Now()
+	coll := c.getCollectionName(collectionName...)
+	if coll == "" {
+		return toMap(&OperationResult{
+			Success: false, ResponseTime: float64(time.Since(start).Milliseconds()),
+			Error: "collection name required",
+		})
+	}
+	option := milvusclient.NewDropPartitionOption(coll, partitionName)
+	err := c.client.DropPartition(c.context(), option)
+	if err != nil {
+		return toMap(&OperationResult{
+			Success: false, ResponseTime: float64(time.Since(start).Milliseconds()),
+			Error: fmt.Sprintf("failed to drop partition: %v", err),
+		})
+	}
+	return toMap(&OperationResult{
+		Success: true, ResponseTime: float64(time.Since(start).Milliseconds()),
+		Result: map[string]interface{}{"partition": partitionName},
 	})
 }
