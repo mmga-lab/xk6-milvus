@@ -5,10 +5,11 @@ go 1.25.9
 // Use milvus master branch with snapshot support
 // To update all milvus deps:
 //   GOPROXY=direct GONOSUMDB=github.com/milvus-io go get github.com/milvus-io/milvus/client/v2@master
-//   GOPROXY=direct GONOSUMDB=github.com/milvus-io go list -m -json github.com/milvus-io/milvus/pkg/v3@master
+//   GOPROXY=direct GONOSUMDB=github.com/milvus-io go get github.com/milvus-io/milvus/pkg/v3@master
 
 require (
 	github.com/grafana/sobek v0.0.0-20251121143121-9f4828fa8148
+	github.com/milvus-io/milvus-proto/go-api/v3 v3.0.0-20260506064405-f5b77584c710
 	github.com/milvus-io/milvus/client/v2 v2.6.1-0.20260512023210-c5ee59af8de5
 	github.com/stretchr/testify v1.11.1
 	go.k6.io/k6 v1.4.1
@@ -62,7 +63,6 @@ require (
 	github.com/mailru/easyjson v0.9.1 // indirect
 	github.com/mattn/go-colorable v0.1.14 // indirect
 	github.com/mattn/go-isatty v0.0.20 // indirect
-	github.com/milvus-io/milvus-proto/go-api/v3 v3.0.0-20260506064405-f5b77584c710 // indirect
 	github.com/milvus-io/milvus/pkg/v3 v3.0.0-beta // indirect
 	github.com/moby/sys/userns v0.1.0 // indirect
 	github.com/modern-go/concurrent v0.0.0-20180306012644-bacd9c7ef1dd // indirect

@@ -1,5 +1,7 @@
 .PHONY: help build test clean install-xk6 examples lint fmt coverage mod-tidy docker-build docker-up docker-down docker-logs all
 
+MILVUS_PKG_V3_VERSION := v3.0.0-20260512023210-c5ee59af8de5
+
 help: ## Show this help message
 	@echo 'Usage: make [target]'
 	@echo ''
@@ -10,8 +12,9 @@ install-xk6: ## Install xk6 tool
 	go install go.k6.io/xk6/cmd/xk6@latest
 
 build: ## Build k6 with xk6-milvus extension
-	$(shell go env GOPATH)/bin/xk6 build --with github.com/mmga-lab/xk6-milvus=. \
-		$(shell grep '^replace' go.mod 2>/dev/null | sed 's/^replace /--replace /; s/ => /=/; s/ \(v[0-9]\)/@\1/' | tr '\n' ' ')
+	$(shell go env GOPATH)/bin/xk6 build \
+		--with github.com/mmga-lab/xk6-milvus=. \
+		--replace github.com/milvus-io/milvus/pkg/v3=github.com/milvus-io/milvus/pkg/v3@$(MILVUS_PKG_V3_VERSION)
 
 test: ## Run tests
 	go test -v -race ./pkg/milvus
