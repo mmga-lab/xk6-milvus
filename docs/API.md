@@ -253,7 +253,7 @@ createCollection(schema: CollectionSchema): OperationResult
 | Property         | Type    | Required    | Description                                          |
 | ---------------- | ------- | ----------- | ---------------------------------------------------- |
 | `name`           | string  | Yes         | Field name                                           |
-| `dataType`       | string  | Yes         | Data type (Int64, Float, VarChar, FloatVector, etc.) |
+| `dataType`       | string  | Yes         | Data type (Int64, Float, VarChar, FloatVector, Array, etc.) |
 | `isPrimaryKey`   | boolean | No          | Whether this is the primary key field                |
 | `isAutoID`       | boolean | No          | Auto-generate IDs for primary key                    |
 | `maxLength`      | number  | Conditional | Max length for VarChar fields                        |
@@ -261,6 +261,10 @@ createCollection(schema: CollectionSchema): OperationResult
 | `enableAnalyzer` | boolean | No          | Enable text analyzer (for BM25)                      |
 | `analyzerParams` | object  | No          | Analyzer configuration                               |
 | `enableMatch`    | boolean | No          | Enable text matching                                 |
+| `elementType`    | string  | Conditional | Element type for Array fields, including Struct      |
+| `maxCapacity`    | number  | Conditional | Max capacity for Array fields                        |
+| `nullable`       | boolean | No          | Whether the field can be null                        |
+| `structFields`   | FieldSchema[] | Conditional | Sub-fields for Array<Struct> fields            |
 
 #### Returns
 
@@ -292,6 +296,10 @@ check(result, {
   "fast creation": (r) => r.response_time_ms < 1000,
 });
 ```
+
+Array<Struct> fields use `dataType: "Array"`, `elementType: "Struct"`, and `structFields`.
+Nested fields can then be referenced as `structA[embedding]`, `structA[color]`, or
+`structA[0][color]` in search, query, and index calls.
 
 ---
 
@@ -535,7 +543,7 @@ Performs vector similarity search.
 
 ```javascript
 search(
-  vectors: number[][] | number[],
+  vectors: number[][] | number[] | number[][][],
   topK: number,
   params: SearchParams,
   collectionName?: string
@@ -546,7 +554,7 @@ search(
 
 | Parameter        | Type                   | Required    | Description                 |
 | ---------------- | ---------------------- | ----------- | --------------------------- |
-| `vectors`        | number[][] or number[] | Yes         | Query vector(s)             |
+| `vectors`        | number[][], number[], or number[][][] | Yes | Query vector(s); number[][][] is used for EmbeddingList |
 | `topK`           | number                 | Yes         | Number of results to return |
 | `params`         | SearchParams           | Yes         | Search parameters           |
 | `collectionName` | string                 | Conditional | Collection name             |
@@ -556,9 +564,16 @@ search(
 | Property       | Type     | Required | Description                        |
 | -------------- | -------- | -------- | ---------------------------------- |
 | `vectorField`  | string   | Yes      | Name of the vector field to search |
-| `metricType`   | string   | No       | Distance metric (L2, IP, COSINE)   |
+| `metricType`   | string   | No       | Distance metric (L2, IP, COSINE, MAX_SIM_COSINE, etc.) |
+| `metric_type`  | string   | No       | Snake-case metric alias            |
 | `outputFields` | string[] | No       | Fields to return in results        |
 | `expr`         | string   | No       | Filter expression                  |
+| `filter`       | string   | No       | Filter expression alias            |
+| `offset`       | number   | No       | Search pagination offset           |
+| `groupByField` | string   | No       | Group-by field                     |
+| `groupSize`    | number   | No       | Group size for grouped search      |
+| `strictGroupSize` | boolean | No    | Require every group to contain groupSize hits |
+| `ignoreGrowing` | boolean | No       | Ignore growing segments            |
 | `params`       | object   | No       | Index-specific search params       |
 
 #### Returns
@@ -597,6 +612,23 @@ searchResult.result.forEach(hit => {
 });
 ```
 
+Struct-array element-wise search uses the nested vector field, for example:
+
+```javascript
+client.search([[0.1, 0.2, 0.3]], 10, {
+  vectorField: "structA[embedding]",
+  metricType: "COSINE",
+  filter: 'element_filter(structA, $[color] == "Red")',
+  outputFields: ["id", "doc_varchar"],
+  groupByField: "id",
+});
+
+client.search([[[0.1, 0.2, 0.3], [0.4, 0.5, 0.6]]], 10, {
+  vectorField: "structA[embedding]",
+  metricType: "MAX_SIM_COSINE",
+});
+```
+
 ---
 
 ### client.query()
@@ -609,7 +641,7 @@ Performs scalar query without vectors (filter-based retrieval).
 query(
   filter: string,
   outputFields: string[],
-  collectionName?: string
+  options?: string | { collectionName?: string, limit?: number, offset?: number }
 ): OperationResult
 ```
 
@@ -619,7 +651,7 @@ query(
 | ---------------- | -------- | ----------- | ------------------------- |
 | `filter`         | string   | Yes         | Boolean filter expression |
 | `outputFields`   | string[] | Yes         | Fields to return          |
-| `collectionName` | string   | Conditional | Collection name           |
+| `options`        | string or object | Conditional | Collection name, or `{ collectionName, limit, offset }` |
 
 #### Example
 
@@ -723,7 +755,7 @@ check(hybridResult, {
 
 ### client.createIndex()
 
-Creates an index on a vector field for faster searches.
+Creates an index on a vector or scalar field for faster searches.
 
 #### Signature
 
@@ -747,14 +779,16 @@ createIndex(
 
 | Property     | Type   | Required | Description                             |
 | ------------ | ------ | -------- | --------------------------------------- |
-| `indexType`  | string | Yes      | Index type (FLAT, IVF_FLAT, HNSW, etc.) |
-| `metricType` | string | Yes      | Distance metric (L2, IP, COSINE)        |
+| `indexType`  | string | Yes      | Index type (FLAT, IVF_FLAT, HNSW, INVERTED, STL_SORT, BITMAP, etc.) |
+| `metricType` | string | No       | Distance metric (L2, IP, COSINE, MAX_SIM_COSINE, etc.); not required for scalar indexes |
+| `indexName`  | string | No       | Optional index name                     |
 | `params`     | object | No       | Index-specific parameters               |
 
 Common index params:
 
 - IVF_FLAT: `{ nlist: 128 }`
 - HNSW: `{ M: 16, efConstruction: 200 }`
+- Scalar nested fields: `{ indexType: "INVERTED" }`, `{ indexType: "STL_SORT" }`, `{ indexType: "BITMAP" }`
 
 #### Example
 
@@ -772,6 +806,9 @@ const indexResult = client.createIndex(
 check(indexResult, {
   "index created": (r) => r.success === true,
 });
+
+client.createIndex("structA[color]", { indexType: "INVERTED" }, "products");
+client.createIndex("structA[int_val]", { indexType: "STL_SORT" }, "products");
 ```
 
 ---

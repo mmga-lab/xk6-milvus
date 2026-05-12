@@ -3,9 +3,7 @@
 import tempfile
 from pathlib import Path
 
-import pytest
-
-from xk6_milvus_bench.config import Config, load_config
+from xk6_milvus_bench.config import load_config
 from xk6_milvus_bench.generator import (
     ScriptGenerator,
     expand_matrix,
@@ -125,6 +123,29 @@ class TestScriptGenerator:
             assert script_path.exists()
             assert "topk50" in script_path.name
             assert "vus20" in script_path.name
+
+    def test_generate_struct_array_script(self):
+        """测试生成 Struct Array benchmark 脚本"""
+        config = load_config("struct-array", None)
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            output_dir = Path(tmpdir)
+            generator = ScriptGenerator()
+
+            script_path = generator.generate_script("struct-array", config, output_dir)
+
+            assert script_path.exists()
+            content = script_path.read_text()
+            assert "structA[embedding]" in content
+            assert "MAX_SIM_COSINE" in content
+            assert "element_filter(structA" in content
+            assert "MATCH_ANY(structA" in content
+            assert "MATCH_LEAST(structA" in content
+            assert "array_contains(structA[color]" in content
+            assert "array_contains_any(structA[category]" in content
+            assert "array_length(structA[color])" in content
+            assert "structA[0][color] in" in content
+            assert "groupByField: 'id'" in content
 
     def test_generate_k8s_resources(self):
         """测试生成 K8s 资源"""

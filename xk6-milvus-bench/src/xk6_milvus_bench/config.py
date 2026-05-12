@@ -146,6 +146,7 @@ class ScenarioConfig(BaseModel):
     setup: SetupConfig = Field(default_factory=SetupConfig)
     search: SearchConfig = Field(default_factory=SearchConfig)
     benchmark: BenchmarkConfig = Field(default_factory=BenchmarkConfig)
+    struct_array: dict[str, Any] = Field(default_factory=dict)
     variants: list[VariantConfig] = Field(
         default_factory=lambda: [
             VariantConfig(name="basic", filter=None),

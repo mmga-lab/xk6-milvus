@@ -208,7 +208,7 @@ declare module 'k6/x/milvus' {
     /**
      * Performs vector similarity search.
      *
-     * @param vectors - Query vector(s) as number[][] or number[]
+     * @param vectors - Query vector(s) as number[][] or number[]; EmbeddingList uses number[][][]
      * @param topK - Number of results to return
      * @param params - Search parameters
      * @param collectionName - Collection name (optional for collection-bound clients)
@@ -229,7 +229,7 @@ declare module 'k6/x/milvus' {
      * ```
      */
     search(
-      vectors: number[][] | number[],
+      vectors: number[][] | number[] | number[][][],
       topK: number,
       params: SearchParams,
       collectionName?: string
@@ -240,18 +240,18 @@ declare module 'k6/x/milvus' {
      *
      * @param filter - Boolean filter expression
      * @param outputFields - Fields to return in results
-     * @param collectionName - Collection name (optional for collection-bound clients)
+     * @param options - Collection name or query options (optional for collection-bound clients)
      * @returns OperationResult with query results
      * @example
      * ```javascript
      * const result = client.query(
      *   'price > 100 && price < 200',
      *   ['id', 'title', 'price'],
-     *   'products'
+     *   { collectionName: 'products', limit: 10, offset: 0 }
      * );
      * ```
      */
-    query(filter: string, outputFields: string[], collectionName?: string): OperationResult;
+    query(filter: string, outputFields: string[], options?: string | QueryOptions): OperationResult;
 
     /**
      * Performs multi-vector hybrid search with reranking.
@@ -296,7 +296,7 @@ declare module 'k6/x/milvus' {
     // Index Operations
 
     /**
-     * Creates an index on a vector field for faster searches.
+     * Creates an index on a vector or scalar field for faster searches.
      *
      * @param fieldName - Field to index
      * @param indexParams - Index configuration
@@ -380,7 +380,7 @@ declare module 'k6/x/milvus' {
     /** Field name */
     name: string;
 
-    /** Data type (Int64, Float, VarChar, FloatVector, SparseFloatVector, etc.) */
+    /** Data type (Int64, Float, VarChar, FloatVector, SparseFloatVector, Array, etc.) */
     dataType: string;
 
     /** Whether this is the primary key field */
@@ -406,6 +406,18 @@ declare module 'k6/x/milvus' {
 
     /** Enable text matching */
     enableMatch?: boolean;
+
+    /** Element type for Array fields, including Struct for Array<Struct> */
+    elementType?: string;
+
+    /** Max capacity for Array fields */
+    maxCapacity?: number;
+
+    /** Whether this field can be null */
+    nullable?: boolean;
+
+    /** Sub-fields for Array<Struct> fields */
+    structFields?: FieldSchema[];
   }
 
   /**
@@ -443,20 +455,58 @@ declare module 'k6/x/milvus' {
   }
 
   /**
+   * Query options for scalar query.
+   */
+  export interface QueryOptions {
+    /** Collection name; optional for collection-bound clients */
+    collectionName?: string;
+
+    /** Maximum number of rows/elements to return */
+    limit?: number;
+
+    /** Row/element offset for pagination */
+    offset?: number;
+  }
+
+  /**
    * Search parameters for vector similarity search.
    */
   export interface SearchParams {
     /** Name of the vector field to search */
     vectorField: string;
 
-    /** Distance metric (L2, IP, COSINE) */
+    /** Distance metric (L2, IP, COSINE, MAX_SIM_COSINE, etc.) */
     metricType?: string;
+
+    /** Snake-case metric alias accepted by Milvus search params */
+    metric_type?: string;
 
     /** Fields to return in results */
     outputFields?: string[];
 
     /** Filter expression */
     expr?: string;
+
+    /** Filter expression alias */
+    filter?: string;
+
+    /** Search pagination offset */
+    offset?: number;
+
+    /** Group-by field, e.g. primary key for element-wise struct-array search */
+    groupByField?: string;
+
+    /** Group-by field alias */
+    groupingField?: string;
+
+    /** Group size for grouped search */
+    groupSize?: number;
+
+    /** Whether each group must contain groupSize hits */
+    strictGroupSize?: boolean;
+
+    /** Whether to ignore growing segments */
+    ignoreGrowing?: boolean;
 
     /** Index-specific search parameters */
     params?: Record<string, any>;
@@ -467,7 +517,7 @@ declare module 'k6/x/milvus' {
    */
   export interface SearchRequest {
     /** Query vectors */
-    vectors: number[][] | number[];
+    vectors: number[][] | number[] | number[][][];
 
     /** Vector field name */
     vectorField: string;
@@ -477,11 +527,32 @@ declare module 'k6/x/milvus' {
 
     /** Search parameters */
     params?: {
-      /** Distance metric (L2, IP, COSINE) */
+      /** Distance metric (L2, IP, COSINE, MAX_SIM_COSINE, etc.) */
       metricType?: string;
+
+      /** Snake-case metric alias accepted by Milvus search params */
+      metric_type?: string;
 
       /** Filter expression */
       expr?: string;
+
+      /** Filter expression alias */
+      filter?: string;
+
+      /** Search pagination offset */
+      offset?: number;
+
+      /** Group-by field */
+      groupByField?: string;
+
+      /** Group size for grouped search */
+      groupSize?: number;
+
+      /** Whether each group must contain groupSize hits */
+      strictGroupSize?: boolean;
+
+      /** Whether to ignore growing segments */
+      ignoreGrowing?: boolean;
 
       /** Index-specific parameters */
       [key: string]: any;
@@ -509,11 +580,14 @@ declare module 'k6/x/milvus' {
    * Index parameters for creating indexes.
    */
   export interface IndexParams {
-    /** Index type (FLAT, IVF_FLAT, HNSW, etc.) */
+    /** Index type (FLAT, IVF_FLAT, HNSW, INVERTED, STL_SORT, BITMAP, etc.) */
     indexType: string;
 
-    /** Distance metric (L2, IP, COSINE) */
-    metricType: string;
+    /** Distance metric (L2, IP, COSINE, MAX_SIM_COSINE, etc.); not required for scalar indexes */
+    metricType?: string;
+
+    /** Optional index name */
+    indexName?: string;
 
     /** Index-specific parameters */
     params?: {

@@ -91,6 +91,8 @@ Available scenarios:
   concurrent    - 高并发测试
   soak          - 稳定性/持久性测试
   recall        - 召回率验证测试
+  benchmark     - 标准数据集 benchmark
+  struct-array  - Struct Array element-wise/EmbeddingList 综合 benchmark
 ```
 
 ### 运行测试
@@ -98,6 +100,9 @@ Available scenarios:
 ```bash
 # 基本搜索测试
 xk6-milvus-bench run search --host localhost:19530
+
+# Struct Array 综合测试
+xk6-milvus-bench run struct-array --host localhost:19530
 
 # 使用配置文件
 xk6-milvus-bench run search -c configs/stress.yaml
@@ -118,7 +123,14 @@ xk6-milvus-bench run search \
 
 ```bash
 xk6-milvus-bench generate search -o ./output/
+xk6-milvus-bench generate struct-array -o ./output/
 ```
+
+`struct-array` 场景会创建两个 collection：一个使用 `COSINE` 索引覆盖 element-wise
+search/query、`element_filter`、`MATCH_*`、struct sub-field 数组操作和 nested scalar
+index；另一个使用 `MAX_SIM_COSINE` 索引覆盖 EmbeddingList search。默认只包含当前稳定
+能力，不默认运行 rerank、Array/JSON Match、动态 schema/null、Muvera/Lemur/Cardinal 或
+struct hybrid search。
 
 ### K8s 模式
 

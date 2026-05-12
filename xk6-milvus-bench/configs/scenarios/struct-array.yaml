@@ -1,0 +1,77 @@
+extends: default
+
+collection:
+  name_prefix: perf_struct_array_
+  vector_dim: 128
+  index:
+    type: HNSW
+    metric: COSINE
+    params:
+      M: 16
+      efConstruction: 200
+
+execution:
+  vus: 10
+  duration: 5m
+
+thresholds:
+  search_p95_ms: 500
+  search_p99_ms: 1000
+  insert_p95_ms: 1000
+  min_recall: 0
+  max_error_rate: 0.01
+
+scenario:
+  name: struct-array
+  description: Struct Array element-wise search/query and EmbeddingList benchmark
+  type: struct-array
+  setup:
+    data_size: 10000
+    batch_size: 1000
+  search:
+    topk: 10
+    output_fields:
+      - id
+      - doc_varchar
+      - doc_score
+    nprobe: 16
+    ef: 64
+  struct_array:
+    field: structA
+    vector_field: structA[embedding]
+    normal_vector_field: normal_vector
+    max_capacity: 16
+    min_elements: 2
+    max_elements: 5
+    normal_metric: COSINE
+    element_metric: COSINE
+    embedding_list_metric: MAX_SIM_COSINE
+    embedding_list_size: 3
+    colors:
+      - Red
+      - Blue
+      - Green
+      - Yellow
+    sizes:
+      - S
+      - M
+      - L
+      - XL
+    categories:
+      - A
+      - B
+      - C
+      - D
+    stable_variants:
+      - normal_vector_search
+      - element_search
+      - element_filter_search
+      - embedding_list_search
+      - element_filter_query
+      - match_any_query
+      - match_threshold_query
+      - array_contains_query
+      - array_contains_any_query
+      - array_length_query
+      - struct_index_in_query
+      - group_by_pk_search
