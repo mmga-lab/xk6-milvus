@@ -69,7 +69,9 @@ func TestSnapshotOperations(t *testing.T) {
 
 	// Cleanup at the end
 	defer func() {
-		client.DropSnapshot(snapshotName)
+		client.DropSnapshot(snapshotName, map[string]interface{}{
+			"collectionName": collectionName,
+		})
 		client.dropCollectionInternal(collectionName)
 	}()
 
@@ -159,7 +161,9 @@ func TestSnapshotOperations(t *testing.T) {
 
 	// Test DescribeSnapshot
 	t.Run("DescribeSnapshot", func(t *testing.T) {
-		result := client.DescribeSnapshot(snapshotName).(map[string]interface{})
+		result := client.DescribeSnapshot(snapshotName, map[string]interface{}{
+			"collectionName": collectionName,
+		}).(map[string]interface{})
 
 		assert.True(t, result["success"].(bool), "Failed to describe snapshot: %v", result["error"])
 		assert.Greater(t, result["response_time_ms"].(float64), float64(0))
@@ -182,7 +186,9 @@ func TestSnapshotOperations(t *testing.T) {
 			client.dropCollectionInternal(restoredCollectionName)
 		}()
 
-		result := client.RestoreSnapshot(snapshotName, restoredCollectionName).(map[string]interface{})
+		result := client.RestoreSnapshot(snapshotName, restoredCollectionName, map[string]interface{}{
+			"collectionName": collectionName,
+		}).(map[string]interface{})
 
 		assert.True(t, result["success"].(bool), "Failed to restore snapshot: %v", result["error"])
 		assert.Greater(t, result["response_time_ms"].(float64), float64(0))
@@ -252,7 +258,9 @@ func TestSnapshotOperations(t *testing.T) {
 
 	// Test DropSnapshot
 	t.Run("DropSnapshot", func(t *testing.T) {
-		result := client.DropSnapshot(snapshotName).(map[string]interface{})
+		result := client.DropSnapshot(snapshotName, map[string]interface{}{
+			"collectionName": collectionName,
+		}).(map[string]interface{})
 
 		assert.True(t, result["success"].(bool), "Failed to drop snapshot: %v", result["error"])
 		assert.Greater(t, result["response_time_ms"].(float64), float64(0))
@@ -260,7 +268,9 @@ func TestSnapshotOperations(t *testing.T) {
 
 	// Verify snapshot is dropped
 	t.Run("VerifySnapshotDropped", func(t *testing.T) {
-		result := client.DescribeSnapshot(snapshotName).(map[string]interface{})
+		result := client.DescribeSnapshot(snapshotName, map[string]interface{}{
+			"collectionName": collectionName,
+		}).(map[string]interface{})
 		// Should fail because snapshot doesn't exist
 		assert.False(t, result["success"].(bool))
 	})

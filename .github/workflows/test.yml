@@ -108,7 +108,7 @@ jobs:
         run: go install go.k6.io/xk6/cmd/xk6@latest
 
       - name: Build k6 with extension
-        run: xk6 build --with github.com/${{ github.repository }}=.
+        run: make build
 
       - name: Verify build
         run: ./k6 version
