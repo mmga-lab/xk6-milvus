@@ -56,10 +56,34 @@ func (c *Client) CreateSnapshot(name string, collectionName interface{}, options
 }
 
 // DropSnapshot drops a snapshot by name
-func (c *Client) DropSnapshot(name string) interface{} {
+// Parameters:
+//   - name: snapshot name
+//   - options: optional map with "collectionName" and "dbName" keys
+func (c *Client) DropSnapshot(name string, options ...map[string]interface{}) interface{} {
 	start := time.Now()
 
-	opt := milvusclient.NewDropSnapshotOption(name)
+	collectionName := c.defaultCollection
+	var dbName string
+	if len(options) > 0 && options[0] != nil {
+		if coll, ok := options[0]["collectionName"].(string); ok && coll != "" {
+			collectionName = coll
+		}
+		if db, ok := options[0]["dbName"].(string); ok && db != "" {
+			dbName = db
+		}
+	}
+	if collectionName == "" {
+		return toMap(&OperationResult{
+			Success:      false,
+			ResponseTime: float64(time.Since(start).Milliseconds()),
+			Error:        ErrCollectionNameRequired.Error(),
+		})
+	}
+
+	opt := milvusclient.NewDropSnapshotOption(name, collectionName)
+	if dbName != "" {
+		opt = opt.WithDbName(dbName)
+	}
 
 	err := c.client.DropSnapshot(c.context(), opt)
 	if err != nil {
@@ -82,16 +106,27 @@ func (c *Client) DropSnapshot(name string) interface{} {
 func (c *Client) ListSnapshots(options ...map[string]interface{}) interface{} {
 	start := time.Now()
 
-	opt := milvusclient.NewListSnapshotsOption()
-
-	// Parse optional parameters
+	collectionName := c.defaultCollection
+	var dbName string
 	if len(options) > 0 && options[0] != nil {
 		if coll, ok := options[0]["collectionName"].(string); ok && coll != "" {
-			opt = opt.WithCollectionName(coll)
+			collectionName = coll
 		}
-		if dbName, ok := options[0]["dbName"].(string); ok && dbName != "" {
-			opt = opt.WithDbName(dbName)
+		if db, ok := options[0]["dbName"].(string); ok && db != "" {
+			dbName = db
 		}
+	}
+	if collectionName == "" {
+		return toMap(&OperationResult{
+			Success:      false,
+			ResponseTime: float64(time.Since(start).Milliseconds()),
+			Error:        ErrCollectionNameRequired.Error(),
+		})
+	}
+
+	opt := milvusclient.NewListSnapshotsOption(collectionName)
+	if dbName != "" {
+		opt = opt.WithDbName(dbName)
 	}
 
 	snapshots, err := c.client.ListSnapshots(c.context(), opt)
@@ -112,10 +147,34 @@ func (c *Client) ListSnapshots(options ...map[string]interface{}) interface{} {
 }
 
 // DescribeSnapshot describes a snapshot by name
-func (c *Client) DescribeSnapshot(name string) interface{} {
+// Parameters:
+//   - name: snapshot name
+//   - options: optional map with "collectionName" and "dbName" keys
+func (c *Client) DescribeSnapshot(name string, options ...map[string]interface{}) interface{} {
 	start := time.Now()
 
-	opt := milvusclient.NewDescribeSnapshotOption(name)
+	collectionName := c.defaultCollection
+	var dbName string
+	if len(options) > 0 && options[0] != nil {
+		if coll, ok := options[0]["collectionName"].(string); ok && coll != "" {
+			collectionName = coll
+		}
+		if db, ok := options[0]["dbName"].(string); ok && db != "" {
+			dbName = db
+		}
+	}
+	if collectionName == "" {
+		return toMap(&OperationResult{
+			Success:      false,
+			ResponseTime: float64(time.Since(start).Milliseconds()),
+			Error:        ErrCollectionNameRequired.Error(),
+		})
+	}
+
+	opt := milvusclient.NewDescribeSnapshotOption(name, collectionName)
+	if dbName != "" {
+		opt = opt.WithDbName(dbName)
+	}
 
 	resp, err := c.client.DescribeSnapshot(c.context(), opt)
 	if err != nil {
@@ -145,7 +204,7 @@ func (c *Client) DescribeSnapshot(name string) interface{} {
 // Parameters:
 //   - name: snapshot name
 //   - collectionName: target collection name to restore to
-//   - options: optional map with "dbName" key
+//   - options: optional map with "collectionName"/"sourceCollectionName", "dbName", and "targetDbName" keys
 func (c *Client) RestoreSnapshot(name string, collectionName string, options ...map[string]interface{}) interface{} {
 	start := time.Now()
 
@@ -157,13 +216,35 @@ func (c *Client) RestoreSnapshot(name string, collectionName string, options ...
 		})
 	}
 
-	opt := milvusclient.NewRestoreSnapshotOption(name, collectionName)
-
-	// Parse optional parameters
+	sourceCollectionName := c.defaultCollection
+	var dbName, targetDbName string
 	if len(options) > 0 && options[0] != nil {
-		if dbName, ok := options[0]["dbName"].(string); ok && dbName != "" {
-			opt = opt.WithDbName(dbName)
+		if coll, ok := options[0]["sourceCollectionName"].(string); ok && coll != "" {
+			sourceCollectionName = coll
+		} else if coll, ok := options[0]["collectionName"].(string); ok && coll != "" {
+			sourceCollectionName = coll
 		}
+		if db, ok := options[0]["dbName"].(string); ok && db != "" {
+			dbName = db
+		}
+		if targetDB, ok := options[0]["targetDbName"].(string); ok && targetDB != "" {
+			targetDbName = targetDB
+		}
+	}
+	if sourceCollectionName == "" {
+		return toMap(&OperationResult{
+			Success:      false,
+			ResponseTime: float64(time.Since(start).Milliseconds()),
+			Error:        ErrCollectionNameRequired.Error(),
+		})
+	}
+
+	opt := milvusclient.NewRestoreSnapshotOption(name, sourceCollectionName, collectionName)
+	if dbName != "" {
+		opt = opt.WithDbName(dbName)
+	}
+	if targetDbName != "" {
+		opt = opt.WithTargetDbName(targetDbName)
 	}
 
 	jobID, err := c.client.RestoreSnapshot(c.context(), opt)

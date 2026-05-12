@@ -58,6 +58,33 @@ func convertSchemaToRest(schema Schema) map[string]interface{} {
 			if f.AnalyzerParams != nil {
 				field["analyzerParams"] = f.AnalyzerParams
 			}
+			if f.Nullable != nil {
+				field["nullable"] = *f.Nullable
+			}
+			if f.ElementType != "" {
+				field["elementDataType"] = f.ElementType
+			}
+			if f.ElementType == "Struct" && len(f.StructFields) > 0 {
+				structFields := make([]map[string]interface{}, 0, len(f.StructFields))
+				for _, sf := range f.StructFields {
+					sfMap := map[string]interface{}{
+						"fieldName": sf.Name,
+						"dataType":  sf.DataType,
+					}
+					sfParams := map[string]interface{}{}
+					if sf.Dimension > 0 {
+						sfParams["dim"] = fmt.Sprintf("%d", sf.Dimension)
+					}
+					if sf.MaxLength > 0 {
+						sfParams["max_length"] = fmt.Sprintf("%d", sf.MaxLength)
+					}
+					if len(sfParams) > 0 {
+						sfMap["elementTypeParams"] = sfParams
+					}
+					structFields = append(structFields, sfMap)
+				}
+				field["structFields"] = structFields
+			}
 
 			typeParams := map[string]interface{}{}
 			if f.Dimension > 0 {
@@ -65,6 +92,9 @@ func convertSchemaToRest(schema Schema) map[string]interface{} {
 			}
 			if f.MaxLength > 0 {
 				typeParams["max_length"] = fmt.Sprintf("%d", f.MaxLength)
+			}
+			if f.MaxCapacity > 0 {
+				typeParams["max_capacity"] = fmt.Sprintf("%d", f.MaxCapacity)
 			}
 			if len(typeParams) > 0 {
 				field["elementTypeParams"] = typeParams

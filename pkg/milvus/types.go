@@ -39,6 +39,10 @@ type Field struct {
 	EnableAnalyzer bool                   `json:"enableAnalyzer,omitempty"`
 	EnableMatch    bool                   `json:"enableMatch,omitempty"`
 	AnalyzerParams map[string]interface{} `json:"analyzerParams,omitempty"`
+	ElementType    string                 `json:"elementType,omitempty"`    // For Array: "Int64", "Float", "VarChar", "Bool", "Struct"
+	MaxCapacity    int64                  `json:"maxCapacity,omitempty"`   // For Array fields
+	Nullable       *bool                  `json:"nullable,omitempty"`      // Pointer to distinguish unset from false
+	StructFields   []Field               `json:"structFields,omitempty"`  // Sub-fields for Array<Struct>
 }
 
 // Function represents a function definition for schema

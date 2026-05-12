@@ -52,6 +52,18 @@ func (c *Client) CreateIndex(fieldName string, indexParams map[string]interface{
 			metricType = entity.COSINE
 		case "BM25":
 			metricType = entity.BM25
+		case "MAX_SIM":
+			metricType = entity.MaxSim
+		case "MAX_SIM_COSINE":
+			metricType = entity.MaxSimCosine
+		case "MAX_SIM_L2":
+			metricType = entity.MaxSimL2
+		case "MAX_SIM_IP":
+			metricType = entity.MaxSimIP
+		case "MAX_SIM_HAMMING":
+			metricType = entity.MaxSimHamming
+		case "MAX_SIM_JACCARD":
+			metricType = entity.MaxSimJaccard
 		}
 	}
 
@@ -138,5 +150,35 @@ func (c *Client) CreateIndex(fieldName string, indexParams map[string]interface{
 		Success:      true,
 		ResponseTime: float64(time.Since(start).Milliseconds()),
 		Result:       map[string]interface{}{"field": fieldName, "index_type": indexType},
+	})
+}
+
+// DropIndex drops an index by field name
+func (c *Client) DropIndex(fieldName string, collectionName ...string) interface{} {
+	start := time.Now()
+
+	coll := c.getCollectionName(collectionName...)
+	if coll == "" {
+		return toMap(&OperationResult{
+			Success:      false,
+			ResponseTime: float64(time.Since(start).Milliseconds()),
+			Error:        "collection name required",
+		})
+	}
+
+	option := milvusclient.NewDropIndexOption(coll, fieldName)
+	err := c.client.DropIndex(c.context(), option)
+	if err != nil {
+		return toMap(&OperationResult{
+			Success:      false,
+			ResponseTime: float64(time.Since(start).Milliseconds()),
+			Error:        fmt.Sprintf("failed to drop index: %v", err),
+		})
+	}
+
+	return toMap(&OperationResult{
+		Success:      true,
+		ResponseTime: float64(time.Since(start).Milliseconds()),
+		Result:       map[string]interface{}{"field": fieldName},
 	})
 }
