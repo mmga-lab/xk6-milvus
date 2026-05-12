@@ -52,6 +52,18 @@ func (c *Client) CreateIndex(fieldName string, indexParams map[string]interface{
 			metricType = entity.COSINE
 		case "BM25":
 			metricType = entity.BM25
+		case "MAX_SIM":
+			metricType = entity.MaxSim
+		case "MAX_SIM_COSINE":
+			metricType = entity.MaxSimCosine
+		case "MAX_SIM_L2":
+			metricType = entity.MaxSimL2
+		case "MAX_SIM_IP":
+			metricType = entity.MaxSimIP
+		case "MAX_SIM_HAMMING":
+			metricType = entity.MaxSimHamming
+		case "MAX_SIM_JACCARD":
+			metricType = entity.MaxSimJaccard
 		}
 	}
 

@@ -420,7 +420,7 @@ func (c *Client) convertSparseVectors(fieldName string, v []map[string]interface
 //
 // Each sub-field becomes an Array column with numRows entries (one per row).
 // Scalar sub-fields → Array<VarChar>, Array<Int64>, etc.
-// Vector sub-fields → FloatVector with flattened data (Milvus VectorArray format).
+// Vector sub-fields → Array<FloatVector> with row-preserving vector arrays.
 func (c *Client) convertNestedStructArrays(fieldName string, v []interface{}) (column.Column, error) {
 	numRows := len(v)
 	firstRow, ok := v[0].([]interface{})
@@ -457,32 +457,53 @@ func (c *Client) convertNestedStructArrays(fieldName string, v []interface{}) (c
 	for _, fi := range fields {
 		if fi.isVec {
 			// Vector sub-field: each row has multiple vectors → Array<FloatVector>
-			// But SDK doesn't have ArrayOfVector column type, so we flatten into
-			// a regular FloatVector column with total = sum of all struct counts
-			var allVectors [][]float32
+			rows := make([][][]float32, numRows)
 			dim := 0
-			for _, rowI := range v {
-				row, _ := rowI.([]interface{})
-				for _, objI := range row {
-					obj, _ := objI.(map[string]interface{})
-					vecI, _ := obj[fi.name].([]interface{})
+			for i, rowI := range v {
+				row, ok := rowI.([]interface{})
+				if !ok {
+					return nil, newError("convertNestedStructArrays", ErrInvalidDataType,
+						fmt.Sprintf("field %s: row %d is not array", fieldName, i))
+				}
+				rowVectors := make([][]float32, len(row))
+				for j, objI := range row {
+					obj, ok := objI.(map[string]interface{})
+					if !ok {
+						return nil, newError("convertNestedStructArrays", ErrInvalidDataType,
+							fmt.Sprintf("field %s: row %d struct %d is not object", fieldName, i, j))
+					}
+					vecI, ok := obj[fi.name].([]interface{})
+					if !ok {
+						return nil, newError("convertNestedStructArrays", ErrInvalidDataType,
+							fmt.Sprintf("field %s: row %d struct %d vector field %s is not array", fieldName, i, j, fi.name))
+					}
 					if dim == 0 && len(vecI) > 0 {
 						dim = len(vecI)
 					}
+					if len(vecI) != dim {
+						return nil, newError("convertNestedStructArrays", ErrInvalidDataType,
+							fmt.Sprintf("field %s: row %d struct %d vector dimension %d does not match %d", fieldName, i, j, len(vecI), dim))
+					}
 					vec := make([]float32, len(vecI))
-					for j, val := range vecI {
+					for k, val := range vecI {
 						switch f := val.(type) {
 						case float64:
-							vec[j] = float32(f)
+							vec[k] = float32(f)
 						case int64:
-							vec[j] = float32(f)
+							vec[k] = float32(f)
+						case int:
+							vec[k] = float32(f)
+						default:
+							return nil, newError("convertNestedStructArrays", ErrInvalidDataType,
+								fmt.Sprintf("field %s: row %d struct %d vector element %d has type %T", fieldName, i, j, k, val))
 						}
 					}
-					allVectors = append(allVectors, vec)
+					rowVectors[j] = vec
 				}
+				rows[i] = rowVectors
 			}
 			if dim > 0 {
-				subColumns = append(subColumns, column.NewColumnFloatVector(fi.name, dim, allVectors))
+				subColumns = append(subColumns, column.NewColumnFloatVectorArray(fi.name, dim, rows))
 			}
 		} else {
 			// Scalar sub-field: build Array<T> with numRows entries
@@ -586,6 +607,22 @@ func convertToSearchVectors(input interface{}) ([]entity.Vector, error) {
 	data, err := json.Marshal(input)
 	if err != nil {
 		return nil, fmt.Errorf("failed to marshal search input: %w", err)
+	}
+
+	// Try [][][]float32 (EmbeddingList / FloatVectorArray search queries)
+	var vectorArrays [][][]float32
+	if err := json.Unmarshal(data, &vectorArrays); err == nil && len(vectorArrays) > 0 {
+		if len(vectorArrays[0]) > 0 && len(vectorArrays[0][0]) > 0 {
+			result := make([]entity.Vector, len(vectorArrays))
+			for i, vectors := range vectorArrays {
+				floatVectors := make([]entity.FloatVector, len(vectors))
+				for j, v := range vectors {
+					floatVectors[j] = entity.FloatVector(v)
+				}
+				result[i] = entity.FloatVectorArray(floatVectors)
+			}
+			return result, nil
+		}
 	}
 
 	// Try [][]float32 (dense vectors)

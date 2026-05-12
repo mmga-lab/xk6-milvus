@@ -3,7 +3,9 @@ package milvus
 import (
 	"testing"
 
+	"github.com/milvus-io/milvus-proto/go-api/v3/schemapb"
 	"github.com/milvus-io/milvus/client/v2/column"
+	"github.com/milvus-io/milvus/client/v2/entity"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"go.k6.io/k6/js/modules"
@@ -143,6 +145,39 @@ func TestConvertDataToColumns(t *testing.T) {
 			wantErr: false,
 			validate: func(t *testing.T, cols []column.Column) {
 				assert.Len(t, cols, 3)
+			},
+		},
+		{
+			name: "struct array with vector subfield",
+			data: map[string]any{
+				"clips": []any{
+					[]any{
+						map[string]any{"tag": "a", "age": float64(10), "emb": []any{float64(0.1), float64(0.2)}},
+						map[string]any{"tag": "b", "age": float64(11), "emb": []any{float64(0.3), float64(0.4)}},
+					},
+					[]any{
+						map[string]any{"tag": "c", "age": float64(12), "emb": []any{float64(0.5), float64(0.6)}},
+					},
+				},
+			},
+			wantErr: false,
+			validate: func(t *testing.T, cols []column.Column) {
+				require.Len(t, cols, 1)
+				require.Equal(t, "clips", cols[0].Name())
+
+				fd := cols[0].FieldData()
+				require.Equal(t, schemapb.DataType_ArrayOfStruct, fd.GetType())
+
+				var embFieldFound bool
+				for _, subField := range fd.GetStructArrays().GetFields() {
+					if subField.GetFieldName() == "emb" {
+						embFieldFound = true
+						assert.Equal(t, schemapb.DataType_ArrayOfVector, subField.GetType())
+						assert.EqualValues(t, 2, subField.GetVectors().GetVectorArray().GetDim())
+						assert.Len(t, subField.GetVectors().GetVectorArray().GetData(), 2)
+					}
+				}
+				assert.True(t, embFieldFound)
 			},
 		},
 		{
@@ -414,6 +449,24 @@ func TestOperationResultStructure(t *testing.T) {
 	assert.Empty(t, result.Error)
 	assert.False(t, result.Empty)
 	assert.Equal(t, float32(0.95), result.Recall)
+}
+
+func TestConvertToSearchVectorsFloatVectorArray(t *testing.T) {
+	vectors, err := convertToSearchVectors([]any{
+		[]any{
+			[]any{float64(0.1), float64(0.2)},
+			[]any{float64(0.3), float64(0.4)},
+		},
+	})
+
+	require.NoError(t, err)
+	require.Len(t, vectors, 1)
+
+	vectorArray, ok := vectors[0].(entity.FloatVectorArray)
+	require.True(t, ok)
+	require.Len(t, vectorArray, 2)
+	assert.Equal(t, entity.FloatVector{0.1, 0.2}, vectorArray[0])
+	assert.Equal(t, entity.FloatVector{0.3, 0.4}, vectorArray[1])
 }
 
 func TestSchemaStructure(t *testing.T) {
