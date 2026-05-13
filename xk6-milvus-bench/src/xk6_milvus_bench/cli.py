@@ -29,6 +29,7 @@ AVAILABLE_SCENARIOS = [
     "soak",
     "recall",
     "benchmark",  # 标准数据集 benchmark
+    "struct-array",
 ]
 
 # Dataset 子命令组
@@ -266,6 +267,7 @@ def list_scenarios():
         "soak": "稳定性/持久性测试",
         "recall": "召回率验证测试",
         "benchmark": "标准数据集 benchmark（需要先下载数据集）",
+        "struct-array": "Struct Array element-wise/EmbeddingList 综合 benchmark",
     }
 
     for name, desc in scenarios_info.items():

@@ -213,6 +213,54 @@ export default function () {
 }
 ```
 
+### Struct Array and EmbeddingList
+
+```javascript
+const schema = {
+  name: "clips",
+  fields: [
+    { name: "id", dataType: "Int64", isPrimaryKey: true },
+    { name: "normal_vector", dataType: "FloatVector", dimension: 128 },
+    {
+      name: "structA",
+      dataType: "Array",
+      elementType: "Struct",
+      maxCapacity: 16,
+      structFields: [
+        { name: "embedding", dataType: "FloatVector", dimension: 128 },
+        { name: "color", dataType: "VarChar", maxLength: 32 },
+        { name: "int_val", dataType: "Int64" },
+      ],
+    },
+  ],
+};
+
+client.createCollection(schema);
+client.createIndex("structA[embedding]", {
+  indexType: "HNSW",
+  metricType: "COSINE",
+  params: { M: 16, efConstruction: 200 },
+});
+client.createIndex("structA[color]", { indexType: "INVERTED" });
+client.createIndex("structA[int_val]", { indexType: "STL_SORT" });
+
+client.search([[0.1, 0.2]], 10, {
+  vectorField: "structA[embedding]",
+  metricType: "COSINE",
+  filter: 'element_filter(structA, $[color] == "Red")',
+  groupByField: "id",
+});
+
+client.query('MATCH_ANY(structA, $[color] == "Red" && $[int_val] > 10)', ["id"], {
+  limit: 10,
+});
+
+client.search([[[0.1, 0.2], [0.3, 0.4]]], 10, {
+  vectorField: "structA[embedding]",
+  metricType: "MAX_SIM_COSINE",
+});
+```
+
 ### BM25 Full-Text Search
 
 ```javascript
@@ -434,13 +482,13 @@ See [docs/API.md](docs/API.md) for complete API documentation.
 
 ### Search Operations
 
-- `client.search(vectors, topK, params, collectionName?)` - Vector similarity search
-- `client.query(filter, outputFields, collectionName?)` - Scalar query
+- `client.search(vectors, topK, params, collectionName?)` - Vector similarity search, including `number[][][]` EmbeddingList queries
+- `client.query(filter, outputFields, collectionNameOrOptions?)` - Scalar query with optional `limit`/`offset`
 - `client.hybridSearch(requests, reranker, limit, outputFields, collectionName?)` - Multi-vector search
 
 ### Index Operations
 
-- `client.createIndex(fieldName, indexParams, collectionName?)` - Create index
+- `client.createIndex(fieldName, indexParams, collectionName?)` - Create vector or scalar index
 
 ### OperationResult Structure
 

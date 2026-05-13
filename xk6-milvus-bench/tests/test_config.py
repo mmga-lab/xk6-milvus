@@ -4,16 +4,15 @@ import os
 import tempfile
 from pathlib import Path
 
-import pytest
 import yaml
 
 from xk6_milvus_bench.config import (
     Config,
-    expand_env_vars,
-    deep_merge,
-    load_yaml_config,
-    load_config,
     config_to_dict,
+    deep_merge,
+    expand_env_vars,
+    load_config,
+    load_yaml_config,
 )
 
 
@@ -171,3 +170,13 @@ class TestLoadConfig:
         # 在没有配置文件的情况下应该返回默认配置
         config = load_config("search", None)
         assert config.scenario.type == "search"
+
+    def test_load_struct_array_config(self):
+        """测试加载 Struct Array 场景配置"""
+        config = load_config("struct-array", None)
+
+        assert config.scenario.type == "struct-array"
+        assert config.scenario.name == "struct-array"
+        assert config.scenario.struct_array["vector_field"] == "structA[embedding]"
+        assert config.scenario.struct_array["embedding_list_metric"] == "MAX_SIM_COSINE"
+        assert "element_filter_search" in config.scenario.struct_array["stable_variants"]

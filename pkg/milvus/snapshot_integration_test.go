@@ -35,12 +35,47 @@ func createTestClient(t *testing.T) *milvusclient.Client {
 // skipIfSnapshotNotSupported checks if the Milvus server supports snapshot operations
 // and skips the test if not supported (older Milvus versions don't have this feature)
 func skipIfSnapshotNotSupported(t *testing.T, client *Client) {
-	result := client.ListSnapshots(nil).(map[string]interface{})
+	result := client.ListRestoreSnapshotJobs().(map[string]interface{})
 	if !result["success"].(bool) {
 		errMsg := result["error"].(string)
-		if strings.Contains(errMsg, "Unimplemented") || strings.Contains(errMsg, "unknown method") {
+		if isSnapshotUnsupportedError(errMsg) {
 			t.Skip("Skipping test: Milvus server does not support snapshot operations")
 		}
+	}
+}
+
+func isSnapshotUnsupportedError(errMsg string) bool {
+	errMsg = strings.ToLower(errMsg)
+	return strings.Contains(errMsg, "unimplemented") || strings.Contains(errMsg, "unknown method")
+}
+
+func TestIsSnapshotUnsupportedError(t *testing.T) {
+	tests := []struct {
+		name   string
+		errMsg string
+		want   bool
+	}{
+		{
+			name:   "grpc unimplemented",
+			errMsg: "rpc error: code = Unimplemented desc = unknown method CreateSnapshot",
+			want:   true,
+		},
+		{
+			name:   "lowercase unknown method",
+			errMsg: "unknown method ListSnapshots for service milvus.proto.milvus.MilvusService",
+			want:   true,
+		},
+		{
+			name:   "regular operation error",
+			errMsg: "collection name required",
+			want:   false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.want, isSnapshotUnsupportedError(tt.errMsg))
+		})
 	}
 }
 

@@ -39,10 +39,10 @@ type Field struct {
 	EnableAnalyzer bool                   `json:"enableAnalyzer,omitempty"`
 	EnableMatch    bool                   `json:"enableMatch,omitempty"`
 	AnalyzerParams map[string]interface{} `json:"analyzerParams,omitempty"`
-	ElementType    string                 `json:"elementType,omitempty"`    // For Array: "Int64", "Float", "VarChar", "Bool", "Struct"
-	MaxCapacity    int64                  `json:"maxCapacity,omitempty"`   // For Array fields
-	Nullable       *bool                  `json:"nullable,omitempty"`      // Pointer to distinguish unset from false
-	StructFields   []Field               `json:"structFields,omitempty"`  // Sub-fields for Array<Struct>
+	ElementType    string                 `json:"elementType,omitempty"`  // For Array: "Int64", "Float", "VarChar", "Bool", "Struct"
+	MaxCapacity    int64                  `json:"maxCapacity,omitempty"`  // For Array fields
+	Nullable       *bool                  `json:"nullable,omitempty"`     // Pointer to distinguish unset from false
+	StructFields   []Field                `json:"structFields,omitempty"` // Sub-fields for Array<Struct>
 }
 
 // Function represents a function definition for schema
@@ -65,9 +65,10 @@ type Schema struct {
 
 // SearchResult represents a single search result entry
 type SearchResult struct {
-	ID     int64                  `json:"id"`
-	Score  float32                `json:"score"`
-	Fields map[string]interface{} `json:"fields,omitempty"`
+	ID           int64                  `json:"id"`
+	Score        float32                `json:"score"`
+	GroupByValue interface{}            `json:"group_by_value,omitempty"`
+	Fields       map[string]interface{} `json:"fields,omitempty"`
 }
 
 // QueryResult represents a single query result entry
